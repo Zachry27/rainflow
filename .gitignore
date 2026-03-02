@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+
+# Build output
+dist/
+
+# Environment
+.env
+*.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Misc
+*.log
+sso_state.json
+key.txt
+
+# Large media files
+backend/data/videos/
+*.mp4
+*.mp3
+*.wav
