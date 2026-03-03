@@ -88,6 +88,7 @@ export default function App() {
                         settings={settings}
                         onUpdateSettings={updateSettings}
                         outputNames={getOutputNames()}
+                        driveAccessToken={driveToken}
                     />
                 )
             case 'generate':
@@ -111,6 +112,7 @@ export default function App() {
                         onComplete={() => markStepDone('process')}
                         manualVideos={manualVideos}
                         onManualVideosChange={setManualVideos}
+                        driveAccessToken={driveToken}
                     />
                 )
             case 'export':

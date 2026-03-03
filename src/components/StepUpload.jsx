@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useRef } from 'react'
 
-export default function StepUpload({ images, onImagesChange, settings, onUpdateSettings, outputNames }) {
+export default function StepUpload({ images, onImagesChange, settings, onUpdateSettings, outputNames, driveAccessToken }) {
     const [dragging, setDragging] = useState(false)
+    const [gdriveLoading, setGdriveLoading] = useState(false)
     const fileInputRef = useRef(null)
 
     const handleFiles = useCallback((files) => {
@@ -11,7 +12,7 @@ export default function StepUpload({ images, onImagesChange, settings, onUpdateS
             file,
             name: file.name,
             preview: URL.createObjectURL(file),
-            status: 'pending', // pending | generating | done | error
+            status: 'pending',
             videoUrl: null,
             error: null,
         }))
@@ -40,6 +41,61 @@ export default function StepUpload({ images, onImagesChange, settings, onUpdateS
         onImagesChange([])
     }, [images, onImagesChange])
 
+    // ── Google Drive Picker ──
+    const loadPickerApi = () => new Promise((resolve, reject) => {
+        if (window.google?.picker) { resolve(); return }
+        if (window.gapi?.load) { window.gapi.load('picker', resolve); return }
+        const script = document.createElement('script')
+        script.src = 'https://apis.google.com/js/api.js'
+        script.onload = () => window.gapi.load('picker', resolve)
+        script.onerror = reject
+        document.head.appendChild(script)
+    })
+
+    const openGdrivePicker = useCallback(async () => {
+        if (!driveAccessToken) {
+            alert('Sambungkan Google Drive dulu (isi Client ID di atas dan klik Connect Drive)')
+            return
+        }
+        setGdriveLoading(true)
+        try {
+            await loadPickerApi()
+            const picker = new window.google.picker.PickerBuilder()
+                .addView(new window.google.picker.DocsView()
+                    .setMimeTypes('image/jpeg,image/png,image/webp,image/gif'))
+                .setOAuthToken(driveAccessToken)
+                .setCallback(async (data) => {
+                    if (data.action !== 'picked') return
+                    const docs = data.docs || []
+                    const newImages = await Promise.all(docs.map(async (doc) => {
+                        const resp = await fetch(
+                            `https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media`,
+                            { headers: { Authorization: `Bearer ${driveAccessToken}` } }
+                        )
+                        const blob = await resp.blob()
+                        const file = new File([blob], doc.name, { type: blob.type })
+                        return {
+                            id: `gdrive_${doc.id}`,
+                            file,
+                            name: doc.name,
+                            preview: URL.createObjectURL(blob),
+                            status: 'pending',
+                            videoUrl: null,
+                            error: null,
+                            fromDrive: true,
+                        }
+                    }))
+                    onImagesChange([...images, ...newImages])
+                    setGdriveLoading(false)
+                })
+                .build()
+            picker.setVisible(true)
+        } catch (err) {
+            alert('Gagal buka Google Drive Picker: ' + err.message)
+            setGdriveLoading(false)
+        }
+    }, [driveAccessToken, images, onImagesChange])
+
     return (
         <div>
             <div className="card">
@@ -51,6 +107,19 @@ export default function StepUpload({ images, onImagesChange, settings, onUpdateS
                     <strong>Drag & drop</strong> atau klik area di bawah untuk mengimpor gambar referensi.
                     Setiap gambar akan digunakan sebagai referensi untuk generate video melalui AI.
                 </p>
+
+                {/* Import Buttons */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                    <button
+                        className="btn btn--secondary btn--sm"
+                        onClick={openGdrivePicker}
+                        disabled={gdriveLoading}
+                        id="btn-gdrive-import-step1"
+                        style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                    >
+                        {gdriveLoading ? '⏳ Loading...' : '📂 Import dari Google Drive'}
+                    </button>
+                </div>
 
                 {/* Dropzone */}
                 <div
@@ -95,6 +164,13 @@ export default function StepUpload({ images, onImagesChange, settings, onUpdateS
                             {images.map((img, index) => (
                                 <div className="image-card" key={img.id}>
                                     <img className="image-card__img" src={img.preview} alt={img.name} />
+                                    {img.fromDrive && (
+                                        <span style={{
+                                            position: 'absolute', top: 4, left: 4,
+                                            background: 'rgba(66,133,244,0.9)', borderRadius: 4,
+                                            padding: '1px 5px', fontSize: 9, color: '#fff', fontWeight: 700
+                                        }}>GDrive</span>
+                                    )}
                                     <div className="image-card__overlay">
                                         <span className="image-card__name" title={outputNames[index] || img.name}>
                                             {outputNames[index] || img.name}
@@ -104,9 +180,7 @@ export default function StepUpload({ images, onImagesChange, settings, onUpdateS
                                         className="image-card__remove"
                                         onClick={(e) => { e.stopPropagation(); removeImage(img.id) }}
                                         title="Hapus gambar"
-                                    >
-                                        ✕
-                                    </button>
+                                    >✕</button>
                                     {img.status !== 'pending' && (
                                         <span className={`image-card__status image-card__status--${img.status}`}>
                                             {img.status === 'generating' ? '⏳ Gen...' :
@@ -175,9 +249,7 @@ export default function StepUpload({ images, onImagesChange, settings, onUpdateS
                             <p className="naming-preview__title">Preview Nama Output</p>
                             <div className="naming-preview__list">
                                 {outputNames.slice(0, 10).map((name, i) => (
-                                    <span className="naming-preview__tag" key={i}>
-                                        {name}
-                                    </span>
+                                    <span className="naming-preview__tag" key={i}>{name}</span>
                                 ))}
                                 {outputNames.length > 10 && (
                                     <span className="naming-preview__tag" style={{ opacity: 0.5 }}>

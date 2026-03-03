@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.logger import logger
 from app.services.sso_manager import sso_manager
 from app.api.generate import router as generate_router
+from app.api.ffmpeg import router as ffmpeg_router
 
 
 @asynccontextmanager
@@ -46,6 +47,7 @@ app.add_middleware(
 
 # Routes
 app.include_router(generate_router, prefix="/v1")
+app.include_router(ffmpeg_router, prefix="/v1")
 
 
 @app.get("/")
