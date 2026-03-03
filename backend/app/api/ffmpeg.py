@@ -65,101 +65,143 @@ def get_job_dir(job_id: str) -> Path:
 
 
 def build_standard_script(job_dir: Path, videos: list, cfg: ProcessRequest) -> str:
-    """2-step loop: generate concat list → ffmpeg concat → merge audio"""
-    path = str(job_dir)
+    """2-step: concat loop + merge audio. Robust version."""
+    path = str(job_dir).replace('\\', '/')
+    n_loops = max(1, int(cfg.loop_duration / max(cfg.video_duration, 1)))
     lines = [
         "#!/bin/bash",
         "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "set -e",
-        f"cd {path}",
+        "",
+        "die() { echo \"ERROR: $1\" >&2; exit 1; }",
+        "",
+        f"cd '{path}' || die 'Tidak bisa masuk ke job dir'",
         ""
     ]
     for i, v in enumerate(videos):
         raw = cfg.get_input_file(i)
         raw_full = f"{path}/{raw}"
-        out = f"{path}/{v}_loop.mp4"  # nama beda dari input agar tidak conflict
-        n_loops = max(1, int(cfg.loop_duration / max(cfg.video_duration, 1)))
-        list_file = f"/tmp/list_{v}_{cfg.job_dir or 'x'}.txt"
+        out = f"{path}/{v}_loop.mp4"
+        list_file = f"/tmp/rf_list_{v}.txt"
 
         lines += [
-            f"# === {v} ===",
-            f"rm -f {list_file}",
-            f"for i in $(seq 1 {n_loops}); do echo \"file '{raw_full}'\"; done > {list_file}",
-            f"ffmpeg -y -f concat -safe 0 -i {list_file} -c copy /tmp/{v}_loop.mp4",
+            f"echo '=== Processing: {v} ===' ",
+            f"[ -f '{raw_full}' ] || die 'File tidak ditemukan: {raw_full}'",
+            f"",
+            f"echo '  [1/2] Membuat concat list ({n_loops} loops)...'",
+            f"rm -f '{list_file}'",
+            f"for j in $(seq 1 {n_loops}); do echo \"file '{raw_full}'\"; done > '{list_file}'",
+            f"wc -l '{list_file}' | grep -q '{n_loops}' || die 'Gagal buat concat list'",
+            f"",
+            f"echo '  [2/2] Concat + loop...'",
+            f"ffmpeg -y -f concat -safe 0 -i '{list_file}' -c copy /tmp/rf_{v}_loop.mp4 \\",
+            f"  || die 'FFmpeg concat gagal untuk {v}'",
         ]
         if cfg.audio_file:
             audio_full = f"{path}/{cfg.audio_file}"
-            lines.append(
-                f"ffmpeg -y -i /tmp/{v}_loop.mp4 -i '{audio_full}' "
-                f"-map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest '{out}'"
-            )
+            lines += [
+                f"echo '  Merge audio...'",
+                f"ffmpeg -y -i /tmp/rf_{v}_loop.mp4 -i '{audio_full}' \\",
+                f"  -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest '{out}' \\",
+                f"  || die 'FFmpeg audio merge gagal'",
+                f"rm -f /tmp/rf_{v}_loop.mp4",
+            ]
         else:
-            lines.append(f"mv /tmp/{v}_loop.mp4 '{out}'")
-        lines += [f"rm -f {list_file} /tmp/{v}_loop.mp4", ""]
+            lines += [f"mv /tmp/rf_{v}_loop.mp4 '{out}'"]
+        lines += [f"rm -f '{list_file}'", f"echo '  OK: {v}_loop.mp4'", ""]
 
     lines.append('echo "DONE"')
     return "\n".join(lines)
 
 
 def build_benalus_script(job_dir: Path, videos: list, cfg: ProcessRequest) -> str:
-    """4-step BenAlus: deflicker → fade → concat loop → merge audio"""
+    """4-step BenAlus. Robust version: deflicker optional, explicit error checks."""
     fd = cfg.fade_duration
     vd = cfg.video_duration
     n_loops = max(1, int(cfg.loop_duration / max(vd, 1)))
-    path = str(job_dir)
+    fade_out_start = round(vd - fd, 3)
+    path = str(job_dir).replace('\\', '/')
+
     lines = [
         "#!/bin/bash",
         "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "set -e",
-        f"cd {path}",
+        "",
+        "die() { echo \"ERROR: $1\" >&2; exit 1; }",
+        "",
+        f"cd '{path}' || die 'Tidak bisa masuk ke job dir'",
         ""
     ]
 
     for i, v in enumerate(videos):
         raw = cfg.get_input_file(i)
         raw_full = f"{path}/{raw}"
-        out = f"{path}/{v}_loop.mp4"  # nama beda dari input agar tidak conflict
-        list_file = f"/tmp/list_{v}_{cfg.job_dir or 'x'}.txt"
-        lines.append(f"# === BenAlus: {v} ===")
+        out = f"{path}/{v}_loop.mp4"
+        list_file = f"/tmp/rf_list_{v}.txt"
 
-        # Step 1: Deflicker
+        lines += [
+            f"echo '=== BenAlus: {v} ===' ",
+            f"[ -f '{raw_full}' ] || die 'File tidak ditemukan: {raw_full}'",
+            "",
+        ]
+
+        # Step 1: Deflicker (skip jika gagal)
         if cfg.deflicker:
-            lines.append(
-                f"ffmpeg -y -i '{raw_full}' "
-                f"-vf 'deflicker=mode=pm:size=10' "
-                f"-c:v libx264 -preset fast -crf 18 -an /tmp/{v}_defl.mp4"
-            )
-            src = f"/tmp/{v}_defl.mp4"
+            lines += [
+                f"echo '  [1/4] Deflicker...'",
+                f"if ffmpeg -y -i '{raw_full}' -vf 'deflicker=mode=pm:size=10' \\",
+                f"     -c:v libx264 -preset fast -crf 18 -an /tmp/rf_{v}_defl.mp4 2>/dev/null; then",
+                f"  echo '    Deflicker OK'",
+                f"  SRC=/tmp/rf_{v}_defl.mp4",
+                f"else",
+                f"  echo '    Deflicker skip (gunakan file asli)'",
+                f"  SRC='{raw_full}'",
+                f"fi",
+                "",
+            ]
         else:
-            src = f"'{raw_full}'"
+            lines += [f"SRC='{raw_full}'", ""]
 
-        # Step 2: Alpha fade in/out
-        fade_out_start = round(vd - fd, 3)
-        lines.append(
-            f"ffmpeg -y -i {src} "
-            f"-vf 'fade=t=in:st=0:d={fd},fade=t=out:st={fade_out_start}:d={fd}' "
-            f"-c:v libx264 -preset fast -crf 18 -an /tmp/{v}_fade.mp4"
-        )
+        # Step 2: Fade
+        lines += [
+            f"echo '  [2/4] Alpha fade in/out...'",
+            f"ffmpeg -y -i \"$SRC\" \\",
+            f"  -vf 'fade=t=in:st=0:d={fd},fade=t=out:st={fade_out_start}:d={fd}' \\",
+            f"  -c:v libx264 -preset fast -crf 18 -an /tmp/rf_{v}_fade.mp4 \\",
+            f"  || die 'Fade step gagal untuk {v}'",
+            f"rm -f /tmp/rf_{v}_defl.mp4",
+            "",
+        ]
 
         # Step 3: Concat loop
-        fade_full = f"/tmp/{v}_fade.mp4"
         lines += [
-            f"rm -f {list_file}",
-            f"for i in $(seq 1 {n_loops}); do echo \"file '{fade_full}'\"; done > {list_file}",
-            f"ffmpeg -y -f concat -safe 0 -i {list_file} -c copy /tmp/{v}_loop.mp4",
+            f"echo '  [3/4] Concat {n_loops} loops...'",
+            f"rm -f '{list_file}'",
+            f"for j in $(seq 1 {n_loops}); do echo \"file '/tmp/rf_{v}_fade.mp4'\"; done > '{list_file}'",
+            f"ffmpeg -y -f concat -safe 0 -i '{list_file}' -c copy /tmp/rf_{v}_loop.mp4 \\",
+            f"  || die 'Concat loop gagal untuk {v}'",
+            f"rm -f /tmp/rf_{v}_fade.mp4 '{list_file}'",
+            "",
         ]
 
         # Step 4: Merge audio
         if cfg.audio_file:
             audio_full = f"{path}/{cfg.audio_file}"
-            lines.append(
-                f"ffmpeg -y -i /tmp/{v}_loop.mp4 -i '{audio_full}' "
-                f"-map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest '{out}'"
-            )
+            lines += [
+                f"echo '  [4/4] Merge audio...'",
+                f"ffmpeg -y -i /tmp/rf_{v}_loop.mp4 -i '{audio_full}' \\",
+                f"  -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest '{out}' \\",
+                f"  || die 'Audio merge gagal untuk {v}'",
+                f"rm -f /tmp/rf_{v}_loop.mp4",
+            ]
         else:
-            lines.append(f"mv /tmp/{v}_loop.mp4 '{out}'")
+            lines += [
+                f"echo '  [4/4] Simpan output (no audio)...'",
+                f"mv /tmp/rf_{v}_loop.mp4 '{out}'",
+            ]
 
-        lines += [f"rm -f /tmp/{v}_defl.mp4 /tmp/{v}_fade.mp4 /tmp/{v}_loop.mp4 {list_file}", ""]
+        lines += [
+            f"echo '  SELESAI: {v}_loop.mp4 ('\\ $(du -h '{out}' | cut -f1) \\')'",
+            ""
+        ]
 
     lines.append('echo "DONE"')
     return "\n".join(lines)
