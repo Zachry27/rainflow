@@ -65,25 +65,38 @@ def get_job_dir(job_id: str) -> Path:
 
 
 def build_standard_script(job_dir: Path, videos: list, cfg: ProcessRequest) -> str:
-    """2-step: loop + merge audio"""
-    lines = ["#!/bin/bash", "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "set -e", f"cd {job_dir}", ""]
+    """2-step loop: generate concat list → ffmpeg concat → merge audio"""
+    path = str(job_dir)
+    lines = [
+        "#!/bin/bash",
+        "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "set -e",
+        f"cd {path}",
+        ""
+    ]
     for i, v in enumerate(videos):
         raw = cfg.get_input_file(i)
-        out = f"{v}.mp4"
+        raw_full = f"{path}/{raw}"
+        out = f"{path}/{v}.mp4"
         n_loops = max(1, int(cfg.loop_duration / max(cfg.video_duration, 1)))
+        list_file = f"/tmp/list_{v}_{cfg.job_dir or 'x'}.txt"
+
         lines += [
             f"# === {v} ===",
-            f"printf '%s\\n' $(yes {raw} | head -{n_loops}) > /tmp/list_{v}.txt",
-            f"ffmpeg -y -f concat -safe 0 -i /tmp/list_{v}.txt -c copy /tmp/{v}_loop.mp4",
+            f"rm -f {list_file}",
+            f"for i in $(seq 1 {n_loops}); do echo \"file '{raw_full}'\"; done > {list_file}",
+            f"ffmpeg -y -f concat -safe 0 -i {list_file} -c copy /tmp/{v}_loop.mp4",
         ]
         if cfg.audio_file:
+            audio_full = f"{path}/{cfg.audio_file}"
             lines.append(
-                f"ffmpeg -y -i /tmp/{v}_loop.mp4 -i {cfg.audio_file} "
-                f"-map 0:v -map 1:a -c:v copy -c:a aac -shortest {out}"
+                f"ffmpeg -y -i /tmp/{v}_loop.mp4 -i '{audio_full}' "
+                f"-map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest '{out}'"
             )
         else:
-            lines.append(f"mv /tmp/{v}_loop.mp4 {out}")
-        lines.append("")
+            lines.append(f"mv /tmp/{v}_loop.mp4 '{out}'")
+        lines += [f"rm -f {list_file} /tmp/{v}_loop.mp4", ""]
+
     lines.append('echo "DONE"')
     return "\n".join(lines)
 
@@ -93,47 +106,60 @@ def build_benalus_script(job_dir: Path, videos: list, cfg: ProcessRequest) -> st
     fd = cfg.fade_duration
     vd = cfg.video_duration
     n_loops = max(1, int(cfg.loop_duration / max(vd, 1)))
-    lines = ["#!/bin/bash", "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "set -e", f"cd {job_dir}", ""]
+    path = str(job_dir)
+    lines = [
+        "#!/bin/bash",
+        "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "set -e",
+        f"cd {path}",
+        ""
+    ]
 
     for i, v in enumerate(videos):
         raw = cfg.get_input_file(i)
-        out = f"{v}.mp4"
+        raw_full = f"{path}/{raw}"
+        out = f"{path}/{v}.mp4"
+        list_file = f"/tmp/list_{v}_{cfg.job_dir or 'x'}.txt"
         lines.append(f"# === BenAlus: {v} ===")
 
         # Step 1: Deflicker
         if cfg.deflicker:
             lines.append(
-                f"ffmpeg -y -i {raw} "
+                f"ffmpeg -y -i '{raw_full}' "
                 f"-vf 'deflicker=mode=pm:size=10' "
                 f"-c:v libx264 -preset fast -crf 18 -an /tmp/{v}_defl.mp4"
             )
             src = f"/tmp/{v}_defl.mp4"
         else:
-            src = raw
+            src = f"'{raw_full}'"
 
         # Step 2: Alpha fade in/out
+        fade_out_start = round(vd - fd, 3)
         lines.append(
             f"ffmpeg -y -i {src} "
-            f"-vf 'fade=t=in:st=0:d={fd},fade=t=out:st={vd-fd}:d={fd}' "
+            f"-vf 'fade=t=in:st=0:d={fd},fade=t=out:st={fade_out_start}:d={fd}' "
             f"-c:v libx264 -preset fast -crf 18 -an /tmp/{v}_fade.mp4"
         )
 
         # Step 3: Concat loop
+        fade_full = f"/tmp/{v}_fade.mp4"
         lines += [
-            f"printf 'file /tmp/{v}_fade.mp4\\n%.0s' $(seq 1 {n_loops}) > /tmp/list_{v}.txt",
-            f"ffmpeg -y -f concat -safe 0 -i /tmp/list_{v}.txt -c copy /tmp/{v}_loop.mp4",
+            f"rm -f {list_file}",
+            f"for i in $(seq 1 {n_loops}); do echo \"file '{fade_full}'\"; done > {list_file}",
+            f"ffmpeg -y -f concat -safe 0 -i {list_file} -c copy /tmp/{v}_loop.mp4",
         ]
 
         # Step 4: Merge audio
         if cfg.audio_file:
+            audio_full = f"{path}/{cfg.audio_file}"
             lines.append(
-                f"ffmpeg -y -i /tmp/{v}_loop.mp4 -i {cfg.audio_file} "
-                f"-map 0:v -map 1:a -c:v copy -c:a aac -shortest {out}"
+                f"ffmpeg -y -i /tmp/{v}_loop.mp4 -i '{audio_full}' "
+                f"-map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest '{out}'"
             )
         else:
-            lines.append(f"mv /tmp/{v}_loop.mp4 {out}")
+            lines.append(f"mv /tmp/{v}_loop.mp4 '{out}'")
 
-        lines.append("")
+        lines += [f"rm -f /tmp/{v}_defl.mp4 /tmp/{v}_fade.mp4 /tmp/{v}_loop.mp4 {list_file}", ""]
 
     lines.append('echo "DONE"')
     return "\n".join(lines)

@@ -229,7 +229,9 @@ echo "✅ ${name}.mp4 selesai!"`
             await loadPickerApi()
             const picker = new window.google.picker.PickerBuilder()
                 .addView(new window.google.picker.DocsView()
-                    .setMimeTypes('video/mp4,video/quicktime,video/*,audio/*'))
+                    .setMimeTypes('video/mp4,video/quicktime,video/x-matroska,video/*'))
+                .addView(new window.google.picker.DocsView()
+                    .setMimeTypes('audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/ogg,audio/*'))
                 .setOAuthToken(driveAccessToken)
                 .setCallback(async (data) => {
                     if (data.action !== 'picked') { setGdriveVideoLoading(false); return }
