@@ -66,7 +66,7 @@ def get_job_dir(job_id: str) -> Path:
 
 def build_standard_script(job_dir: Path, videos: list, cfg: ProcessRequest) -> str:
     """2-step: loop + merge audio"""
-    lines = ["#!/bin/bash", "set -e", f"cd {job_dir}", ""]
+    lines = ["#!/bin/bash", "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "set -e", f"cd {job_dir}", ""]
     for i, v in enumerate(videos):
         raw = cfg.get_input_file(i)
         out = f"{v}.mp4"
@@ -93,7 +93,7 @@ def build_benalus_script(job_dir: Path, videos: list, cfg: ProcessRequest) -> st
     fd = cfg.fade_duration
     vd = cfg.video_duration
     n_loops = max(1, int(cfg.loop_duration / max(vd, 1)))
-    lines = ["#!/bin/bash", "set -e", f"cd {job_dir}", ""]
+    lines = ["#!/bin/bash", "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "set -e", f"cd {job_dir}", ""]
 
     for i, v in enumerate(videos):
         raw = cfg.get_input_file(i)
