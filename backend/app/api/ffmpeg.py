@@ -77,7 +77,7 @@ def build_standard_script(job_dir: Path, videos: list, cfg: ProcessRequest) -> s
     for i, v in enumerate(videos):
         raw = cfg.get_input_file(i)
         raw_full = f"{path}/{raw}"
-        out = f"{path}/{v}.mp4"
+        out = f"{path}/{v}_loop.mp4"  # nama beda dari input agar tidak conflict
         n_loops = max(1, int(cfg.loop_duration / max(cfg.video_duration, 1)))
         list_file = f"/tmp/list_{v}_{cfg.job_dir or 'x'}.txt"
 
@@ -118,7 +118,7 @@ def build_benalus_script(job_dir: Path, videos: list, cfg: ProcessRequest) -> st
     for i, v in enumerate(videos):
         raw = cfg.get_input_file(i)
         raw_full = f"{path}/{raw}"
-        out = f"{path}/{v}.mp4"
+        out = f"{path}/{v}_loop.mp4"  # nama beda dari input agar tidak conflict
         list_file = f"/tmp/list_{v}_{cfg.job_dir or 'x'}.txt"
         lines.append(f"# === BenAlus: {v} ===")
 
@@ -279,7 +279,7 @@ async def process_videos(req: ProcessRequest, background_tasks: BackgroundTasks)
     script_path.write_text(script_content)
     script_path.chmod(0o755)
 
-    output_files = [f"{v}.mp4" for v in req.videos]
+    output_files = [f"{v}_loop.mp4" for v in req.videos]
 
     # Init job
     jobs[job_id] = {
