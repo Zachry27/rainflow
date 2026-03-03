@@ -311,6 +311,30 @@ async def process_videos(req: ProcessRequest, background_tasks: BackgroundTasks)
     if missing:
         raise HTTPException(400, f"File tidak ditemukan: {', '.join(missing)}")
 
+    # Auto-detect durasi video yang sebenarnya
+    # Ini penting agar n_loops tidak salah untuk video panjang
+    for i, v in enumerate(req.videos):
+        input_file = job_dir / req.get_input_file(i)
+        if input_file.exists():
+            real_duration = 0.0
+            try:
+                import subprocess as sp
+                r = sp.run([
+                    "ffprobe", "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    str(input_file)
+                ], capture_output=True, text=True, timeout=30)
+                if r.returncode == 0 and r.stdout.strip():
+                    real_duration = float(r.stdout.strip())
+            except Exception:
+                pass
+            # Jika video lebih panjang dari setting, pakai durasi aslinya
+            if real_duration > req.video_duration * 1.5:
+                logger.info(f"Auto-detect duration {v}: {real_duration:.1f}s (setting: {req.video_duration}s)")
+                req = req.model_copy(update={"video_duration": real_duration})
+                break  # update duration untuk semua video
+
     # Build script
     if req.mode == "benalus":
         script_content = build_benalus_script(job_dir, req.videos, req)
