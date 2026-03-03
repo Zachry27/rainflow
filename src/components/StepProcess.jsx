@@ -254,12 +254,12 @@ echo "✅ ${name}.mp4 selesai!"`
     }, [driveAccessToken, jobId])
 
     const startJob = async () => {
-        const videoNames = uploadedFiles
-            .filter(f => f.endsWith('_raw.mp4'))
-            .map(f => f.replace(/_raw\.mp4$/, ''))
+        const rawVideoFiles = uploadedFiles.filter(f => f.match(/\.mp4$/i))
+        // Video name = filename without extension
+        const videoNames = rawVideoFiles.map(f => f.replace(/\.mp4$/i, ''))
 
         if (videoNames.length === 0) {
-            alert('Upload minimal 1 file _raw.mp4 dulu!')
+            alert('Upload minimal 1 file video .mp4 dulu!')
             return
         }
 
@@ -270,6 +270,7 @@ echo "✅ ${name}.mp4 selesai!"`
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 videos: videoNames,
+                input_files: rawVideoFiles,
                 mode: isBenalus ? 'benalus' : 'standard',
                 loop_duration: settings.loopDuration,
                 video_duration: settings.videoDuration || settings.benVideoLen || 6,
@@ -311,7 +312,7 @@ echo "✅ ${name}.mp4 selesai!"`
     }
 
     // ── UI Helpers ──
-    const rawVideos = uploadedFiles.filter(f => f.endsWith('_raw.mp4'))
+    const rawVideos = uploadedFiles.filter(f => f.match(/\.mp4$/i))
     const audioFiles = uploadedFiles.filter(f => f.match(/\.(mp3|aac|wav|ogg)$/i))
     const outputVideos = job?.status === 'done' ? (job.output_files || []) : []
 

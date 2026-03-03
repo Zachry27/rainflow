@@ -30,14 +30,21 @@ jobs: Dict[str, dict] = {}
 # ── Models ──
 
 class ProcessRequest(BaseModel):
-    videos: list[str]          # nama video tanpa _raw.mp4, misal ["rain_sunset", "forest"]
+    videos: list[str]          # nama video (nama output tanpa .mp4)
+    input_files: list[str] = []  # nama file input asli (default: "<name>_raw.mp4")
     mode: str = "standard"     # "standard" | "benalus"
-    loop_duration: int = 10800 # detik (default 3 jam)
+    loop_duration: int = 10800
     video_duration: float = 6.0
     fade_duration: float = 0.8
     deflicker: bool = True
-    audio_file: Optional[str] = None  # nama file audio di WORK_DIR
-    job_dir: Optional[str] = None     # subdirektori job (dari upload)
+    audio_file: Optional[str] = None
+    job_dir: Optional[str] = None
+
+    def get_input_file(self, index: int) -> str:
+        """Ambil nama file input untuk video ke-index. Fallback ke _raw.mp4."""
+        if self.input_files and index < len(self.input_files):
+            return self.input_files[index]
+        return f"{self.videos[index]}_raw.mp4"
 
 
 class JobStatus(BaseModel):
@@ -60,8 +67,8 @@ def get_job_dir(job_id: str) -> Path:
 def build_standard_script(job_dir: Path, videos: list, cfg: ProcessRequest) -> str:
     """2-step: loop + merge audio"""
     lines = ["#!/bin/bash", "set -e", f"cd {job_dir}", ""]
-    for v in videos:
-        raw = f"{v}_raw.mp4"
+    for i, v in enumerate(videos):
+        raw = cfg.get_input_file(i)
         out = f"{v}.mp4"
         n_loops = max(1, int(cfg.loop_duration / max(cfg.video_duration, 1)))
         lines += [
@@ -88,8 +95,8 @@ def build_benalus_script(job_dir: Path, videos: list, cfg: ProcessRequest) -> st
     n_loops = max(1, int(cfg.loop_duration / max(vd, 1)))
     lines = ["#!/bin/bash", "set -e", f"cd {job_dir}", ""]
 
-    for v in videos:
-        raw = f"{v}_raw.mp4"
+    for i, v in enumerate(videos):
+        raw = cfg.get_input_file(i)
         out = f"{v}.mp4"
         lines.append(f"# === BenAlus: {v} ===")
 
@@ -227,10 +234,14 @@ async def process_videos(req: ProcessRequest, background_tasks: BackgroundTasks)
     job_id = req.job_dir or str(uuid.uuid4())[:8]
     job_dir = get_job_dir(job_id)
 
-    # Cek file _raw.mp4 ada
-    missing = [v for v in req.videos if not (job_dir / f"{v}_raw.mp4").exists()]
+    # Cek file ada (gunakan input_files jika ada)
+    missing = []
+    for i, v in enumerate(req.videos):
+        input_file = req.get_input_file(i)
+        if not (job_dir / input_file).exists():
+            missing.append(input_file)
     if missing:
-        raise HTTPException(400, f"File tidak ditemukan di server: {', '.join(f'{m}_raw.mp4' for m in missing)}")
+        raise HTTPException(400, f"File tidak ditemukan: {', '.join(missing)}")
 
     # Build script
     if req.mode == "benalus":
