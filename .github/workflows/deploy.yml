@@ -1,0 +1,32 @@
+name: 🌊 Deploy RainFlow ke VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy ke rain.yahyayt.my.id
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🚀 SSH Deploy ke VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 104.248.138.225
+          username: root
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            set -e
+            echo "📦 Pull kode terbaru..."
+            cd /var/www/rainflow
+            git config --global --add safe.directory /var/www/rainflow
+            git pull origin main
+
+            echo "🔨 Build frontend..."
+            npm run build
+
+            echo "🔄 Reload nginx..."
+            systemctl reload nginx
+
+            echo "✅ Deploy selesai!"
