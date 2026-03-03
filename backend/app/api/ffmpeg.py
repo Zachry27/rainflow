@@ -147,7 +147,7 @@ async def run_ffmpeg_job(job_id: str, script_path: Path, output_files: list[str]
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            "bash", str(script_path),
+            "/bin/bash", str(script_path),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
             cwd=str(job_dir)
