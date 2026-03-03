@@ -1546,3 +1546,12 @@ body::before {
         flex-direction: column;
     }
 }
+/* ===== MODE SELECTOR BUTTONS (Step 3) ===== */
+.mode-selector { display: flex; gap: 10px; }
+.mode-btn { flex: 1; padding: 14px 16px; font-size: 13px; font-weight: 700; font-family: var(--font-body); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-muted); cursor: pointer; transition: all var(--transition); display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center; }
+.mode-btn:hover { border-color: var(--border-light); color: var(--text-dim); }
+.mode-btn--active { border-color: var(--primary); background: rgba(99, 102, 241, 0.1); color: var(--primary-light); box-shadow: 0 0 20px rgba(99, 102, 241, 0.1); }
+.mode-btn--benalus { border-color: #7c3aed; background: rgba(124, 58, 237, 0.1); color: #a78bfa; }
+.mode-btn__badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; background: rgba(99, 102, 241, 0.3); color: var(--primary-light); text-transform: uppercase; letter-spacing: 0.5px; }
+.mode-btn__badge--special { background: linear-gradient(135deg, #7c3aed, #a855f7); color: white; }
+@keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
