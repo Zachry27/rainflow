@@ -29,4 +29,9 @@ jobs:
             echo "🔄 Reload nginx..."
             systemctl reload nginx
 
+            echo "🐍 Restart backend..."
+            systemctl restart rainflow-backend
+            sleep 2
+            curl -s http://127.0.0.1:9564/ | grep -q "RainFlow" && echo "✅ Backend OK" || echo "⚠️ Backend mungkin bermasalah"
+
             echo "✅ Deploy selesai!"
