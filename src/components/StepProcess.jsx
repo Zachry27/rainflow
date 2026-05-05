@@ -22,7 +22,7 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
   const [standaloneVideos, setStandaloneVideos] = useState([]); // file objects (standalone)
   const [audioFile, setAudioFile] = useState(null);
   const [jobs, setJobs] = useState([]);
-  const [backendUrl] = useState(`http://localhost:3000`);
+  const [backendUrl] = useState(`http://${window.location.hostname}:3000`);
   const [isProcessing, setIsProcessing] = useState(false);
   const [backendStatus, setBackendStatus] = useState('unknown'); // 'online' | 'offline' | 'unknown'
 

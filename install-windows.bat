@@ -89,7 +89,7 @@ if %errorLevel% EQU 0 (
     echo  [OK] Rule firewall port 5173 sudah ada, skip...
 ) else (
     netsh advfirewall firewall add rule name="RainFlow Frontend 5173" dir=in action=allow protocol=TCP localport=5173
-    echo  [OK] Port 5173 (Frontend) berhasil dibuka!
+    echo  [OK] Port 5173 [Frontend] berhasil dibuka.
 )
 
 netsh advfirewall firewall show rule name="BenAlus Backend 3000" >nul 2>&1
@@ -97,7 +97,7 @@ if %errorLevel% EQU 0 (
     echo  [OK] Rule firewall port 3000 sudah ada, skip...
 ) else (
     netsh advfirewall firewall add rule name="BenAlus Backend 3000" dir=in action=allow protocol=TCP localport=3000
-    echo  [OK] Port 3000 (Backend BenAlus) berhasil dibuka!
+    echo  [OK] Port 3000 [Backend BenAlus] berhasil dibuka.
 )
 echo.
 
