@@ -22,7 +22,8 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
   const [standaloneVideos, setStandaloneVideos] = useState([]); // file objects (standalone)
   const [audioFile, setAudioFile] = useState(null);
   const [jobs, setJobs] = useState([]);
-  const [backendUrl] = useState(`http://${window.location.hostname}:3000`);
+  // Pakai URL relatif — semua di-proxy Vite ke backend port 3000 secara internal
+  const backendUrl = '';
   const [isProcessing, setIsProcessing] = useState(false);
   const [backendStatus, setBackendStatus] = useState('unknown'); // 'online' | 'offline' | 'unknown'
 
@@ -32,7 +33,7 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
   // ─── Socket.IO + Settings load ───
   useEffect(() => {
     // Cek status backend
-    fetch(`${backendUrl}/api/settings`)
+    fetch('/api/settings')
       .then(res => res.json())
       .then(data => {
         setSettings(prev => ({ ...prev, ...data }));
@@ -42,7 +43,8 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
 
     import('https://cdn.socket.io/4.7.4/socket.io.esm.min.js').then((module) => {
       const io = module.io || module.default;
-      socket = io(backendUrl, { transports: ['websocket', 'polling'] });
+      // Konek Socket.IO via Vite proxy (port 5173, bukan 3000)
+      socket = io(window.location.origin, { path: '/socket.io', transports: ['websocket', 'polling'] });
 
       socket.on('connect', () => setBackendStatus('online'));
       socket.on('disconnect', () => setBackendStatus('offline'));
@@ -88,7 +90,7 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
     const val = type === 'checkbox' ? checked : value;
     const newSettings = { ...settings, [name]: val };
     setSettings(newSettings);
-    fetch(`${backendUrl}/api/settings`, {
+    fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newSettings)
@@ -106,7 +108,7 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
     Object.keys(settings).forEach(key => formData.append(key, settings[key]));
     if (imageId) formData.append('imageId', imageId);
 
-    const res = await fetch(`${backendUrl}/api/process`, { method: 'POST', body: formData });
+    const res = await fetch('/api/process', { method: 'POST', body: formData });
     if (!res.ok) throw new Error(`Status ${res.status}`);
     return res.json();
   };
@@ -154,6 +156,8 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
   };
 
   const canStart = backendStatus === 'online' && !isProcessing;
+  // URL untuk download hasil — pakai relatif via proxy
+  const downloadBase = '';
 
   // ─── UI ───
   return (
@@ -168,7 +172,7 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
             : backendStatus === 'offline' ? <strong style={{ color: '#f87171' }}>Offline ❌ — Jalankan server.cjs dulu!</strong>
             : <strong style={{ color: '#fbbf24' }}>Memeriksa...</strong>}
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#94a3b8' }}>{backendUrl}</span>
+        <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#94a3b8' }}>{window.location.origin} (proxy)</span>
       </div>
 
       {/* ── Mode Selector ── */}
@@ -370,7 +374,7 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
                 </div>
                 {job.log && <div className="log-view">&gt; {job.log}</div>}
                 {job.resultUrl && (
-                  <a href={`${backendUrl}${job.resultUrl}`} className="download-btn" target="_blank" rel="noreferrer">
+                  <a href={job.resultUrl} className="download-btn" target="_blank" rel="noreferrer">
                     ⬇️ Download Hasil
                   </a>
                 )}

@@ -4,12 +4,28 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
     plugins: [react()],
     server: {
-        port: 5174,
+        port: 5173,
+        host: true, // supaya bisa diakses via IP di RDP
         proxy: {
-            '/api': {
+            // Proxy ke Rainflow Python backend (Step 1, 2, 4)
+            '/v1': {
                 target: 'http://127.0.0.1:9564',
                 changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api/, '/v1'),
+            },
+            // Proxy ke BenAlus Node.js backend (Step 3)
+            '/api': {
+                target: 'http://127.0.0.1:3000',
+                changeOrigin: true,
+            },
+            '/downloads': {
+                target: 'http://127.0.0.1:3000',
+                changeOrigin: true,
+            },
+            // Proxy Socket.IO untuk real-time job status
+            '/socket.io': {
+                target: 'http://127.0.0.1:3000',
+                changeOrigin: true,
+                ws: true, // penting! untuk WebSocket
             },
         },
     },
