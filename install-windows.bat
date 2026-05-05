@@ -138,7 +138,14 @@ echo  [INFO] Menginstall dependencies frontend...
 pushd "%INSTALL_DIR%"
 call npm install
 popd
-echo  [OK] Dependencies frontend siap!
+echo  [OK] Dependencies frontend siap.
+echo.
+
+echo  [INFO] Menginstall dependencies backend BenAlus...
+pushd "%INSTALL_DIR%\benalus-backend"
+call npm install
+popd
+echo  [OK] Dependencies backend siap.
 echo.
 
 :: ── Tampilkan IP server ──
