@@ -106,6 +106,7 @@ export default function App() {
                 return (
                     <StepProcess
                         images={images}
+                        onImagesChange={setImages}
                         settings={settings}
                         onUpdateSettings={updateSettings}
                         outputNames={getOutputNames()}

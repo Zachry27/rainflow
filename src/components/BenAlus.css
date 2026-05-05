@@ -1,0 +1,238 @@
+.benalus-container {
+  font-family: 'Inter', sans-serif;
+  color: #f8fafc;
+}
+
+/* ── Status Bar ── */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 0.85rem;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: pulse 1.5s infinite;
+}
+.status-dot.online { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
+.status-dot.offline { background: #f87171; animation: none; }
+.status-dot.unknown { background: #fbbf24; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Mode Toggle ── */
+.mode-toggle-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.mode-toggle-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px;
+  background: rgba(25, 28, 36, 0.5);
+  border: 2px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  color: #94a3b8;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.mode-toggle-btn:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #f8fafc;
+}
+
+.mode-toggle-btn.active {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.15);
+  color: #f8fafc;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.25);
+}
+
+.mode-desc {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #64748b;
+}
+
+.mode-toggle-btn.active .mode-desc {
+  color: #a5b4fc;
+}
+
+
+
+.benalus-container .glass-panel {
+  background: rgba(25, 28, 36, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 30px;
+  margin-bottom: 30px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+}
+
+.benalus-container .grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+.benalus-container h2 {
+  margin-top: 0;
+  color: #fff;
+  font-size: 1.5rem;
+}
+
+.benalus-container .form-group {
+  margin-bottom: 20px;
+}
+
+.benalus-container label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #cbd5e1;
+}
+
+.benalus-container input[type="file"],
+.benalus-container input[type="number"],
+.benalus-container select {
+  width: 100%;
+  padding: 12px 15px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: white;
+  border-radius: 10px;
+  font-family: inherit;
+  transition: all 0.3s ease;
+}
+
+.benalus-container input[type="file"]::file-selector-button {
+  background: #6366f1;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 15px;
+  transition: 0.3s;
+}
+
+.benalus-container input[type="file"]::file-selector-button:hover {
+  background: #4f46e5;
+}
+
+.benalus-container input:focus, 
+.benalus-container select:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.4);
+}
+
+.benalus-container .checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.benalus-container .checkbox-group input {
+  width: 20px;
+  height: 20px;
+  accent-color: #ec4899;
+}
+
+.benalus-container .btn-primary {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(135deg, #6366f1, #ec4899);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 10px 20px rgba(236, 72, 153, 0.3);
+}
+
+.benalus-container .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 25px rgba(236, 72, 153, 0.4);
+}
+
+.benalus-container .job-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 15px;
+}
+
+.benalus-container .job-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.benalus-container .badge {
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+.benalus-container .badge.processing { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+.benalus-container .badge.completed { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+.benalus-container .badge.error { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+
+.benalus-container .log-view {
+  background: #000;
+  padding: 10px;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #4ade80;
+  height: 60px;
+  overflow-y: auto;
+  margin-top: 10px;
+  white-space: pre-wrap;
+}
+
+.benalus-container .download-btn {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 8px 16px;
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+  text-decoration: none;
+  border-radius: 6px;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.benalus-container .download-btn:hover {
+  background: rgba(34, 197, 94, 0.4);
+}

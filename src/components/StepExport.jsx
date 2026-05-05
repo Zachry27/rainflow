@@ -221,9 +221,12 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                 </h3>
                 <div className="status-list">
                     <ChecklistItem done={totalImages > 0} label="Gambar referensi diimpor" detail={`${totalImages} gambar`} />
-                    <ChecklistItem done={doneVideos.length === totalImages && totalImages > 0} label="Semua video berhasil di-generate" detail={`${doneVideos.length}/${totalImages} selesai`} />
-                    <ChecklistItem done={false} label="Download video dari Grok gallery & rename _raw.mp4" detail={`Contoh: ${outputNames[0] || 'crs0302'}_raw.mp4`} />
-                    <ChecklistItem done={false} label="Jalankan batch script FFmpeg (2-step optimized)" detail="Download di Step 3" />
+                    <ChecklistItem done={doneVideos.length === totalImages && totalImages > 0} label="Semua video berhasil di-generate (Step 2)" detail={`${doneVideos.length}/${totalImages} selesai`} />
+                    <ChecklistItem
+                        done={doneVideos.filter(img => img.videoUrl && img.videoUrl.includes('localhost:3000')).length > 0}
+                        label="Proses BenAlus Seamless Loop (Step 3)"
+                        detail={`${doneVideos.filter(img => img.videoUrl && img.videoUrl.includes('localhost:3000')).length}/${totalImages} video siap`}
+                    />
                     <ChecklistItem done={Object.values(uploadStatus).filter(s => s && !String(s).startsWith('error')).length > 0} label="Upload ke Google Drive" detail={`${Object.values(uploadStatus).filter(s => s && !String(s).startsWith('error')).length} video terupload`} />
                     <ChecklistItem done={false} label="Upload video sesuai jadwal YouTube" detail="Ikuti tabel jadwal di atas" />
                 </div>
