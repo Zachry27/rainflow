@@ -106,53 +106,48 @@ echo.
 :: ============================================================
 echo  [6/6] Setup RainFlow...
 
-call refreshenv >nul 2>&1
-
 set INSTALL_DIR=%USERPROFILE%\rainflow
 
-if exist "%INSTALL_DIR%" (
-    echo  [INFO] Folder sudah ada di: %INSTALL_DIR%
-    echo  [INFO] Melakukan git pull untuk update...
-    cd /d "%INSTALL_DIR%"
-    git pull origin main
+:: Clone atau pull
+if exist "%INSTALL_DIR%\.git" (
+    echo  [INFO] Folder sudah ada, melakukan git pull...
+    git -C "%INSTALL_DIR%" pull origin main
+    if %errorLevel% NEQ 0 (
+        echo  [WARN] Git pull gagal, lanjutkan dengan versi yang ada...
+    )
 ) else (
     echo  [INFO] Clone repo RainFlow dari GitHub...
     git clone https://github.com/Zachry27/rainflow.git "%INSTALL_DIR%"
+    if %errorLevel% NEQ 0 (
+        echo  [ERROR] Git clone gagal! Periksa koneksi internet.
+        pause
+        exit /b 1
+    )
     echo  [OK] Clone selesai!
 )
 
-cd /d "%INSTALL_DIR%"
+:: Pastikan folder ada sebelum npm install
+if not exist "%INSTALL_DIR%\package.json" (
+    echo  [ERROR] package.json tidak ditemukan di %INSTALL_DIR%
+    echo  Clone gagal atau repo kosong.
+    pause
+    exit /b 1
+)
 
-echo  [INFO] Menginstall dependencies frontend (npm install)...
+echo  [INFO] Menginstall dependencies frontend...
+pushd "%INSTALL_DIR%"
 call npm install
-
-:: ── Setup Backend BenAlus ──
-set BACKEND_DIR=%INSTALL_DIR%\benalus-backend
-if not exist "%BACKEND_DIR%" mkdir "%BACKEND_DIR%"
-
-:: Copy server.cjs ke folder backend jika belum ada
-if not exist "%BACKEND_DIR%\server.cjs" (
-    echo  [INFO] Menyalin file backend BenAlus...
-    copy /Y "%INSTALL_DIR%\benalus-backend\*" "%BACKEND_DIR%\" >nul 2>&1
-)
-
-:: Install backend dependencies
-if exist "%BACKEND_DIR%\package.json" (
-    cd /d "%BACKEND_DIR%"
-    echo  [INFO] Menginstall dependencies backend BenAlus...
-    call npm install
-)
-
-cd /d "%INSTALL_DIR%"
+popd
+echo  [OK] Dependencies frontend siap!
+echo.
 
 :: ── Tampilkan IP server ──
-echo.
 echo  [INFO] IP Address server ini:
 powershell -Command "Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' } | Select-Object -ExpandProperty IPAddress"
 
 echo.
 echo  =====================================================
-echo   INSTALASI SELESAI!
+echo   INSTALASI SELESAI
 echo  =====================================================
 echo.
 echo  Lokasi folder : %INSTALL_DIR%
@@ -162,7 +157,7 @@ echo  Akses dari browser (dari PC lain):
 echo    Frontend  : http://[IP-SERVER]:5173
 echo    Backend   : http://[IP-SERVER]:3000
 echo.
-echo  TIPS: Jalankan start-windows.bat untuk start semua sekaligus!
+echo  TIPS: Jalankan start-windows.bat untuk start semua sekaligus
 echo.
 
 set /p RUNAPP= Jalankan RainFlow sekarang? (y/n): 
