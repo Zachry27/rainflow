@@ -125,6 +125,23 @@ const runFfmpegJob = async (job) => {
     const candidate = path.join(AUDIO_DIR, path.basename(audioName)); // prevent path traversal
     if (fs.existsSync(candidate)) resolvedAudioPath = candidate;
   }
+
+  // ── Windows EBUSY fix ─────────────────────────────────────────────────────
+  // Copy audio to temp folder before FFmpeg opens it.
+  // Prevents file lock conflict between Express static server & FFmpeg.
+  let tempAudioPath = null;
+  if (resolvedAudioPath) {
+    try {
+      const ext = path.extname(resolvedAudioPath);
+      tempAudioPath = path.join(UPLOADS_DIR, `temp_audio_${id}${ext}`);
+      fs.copyFileSync(resolvedAudioPath, tempAudioPath);
+      resolvedAudioPath = tempAudioPath;
+    } catch (e) {
+      console.warn(`[WARN] Gagal copy audio temp (${e.message}), menggunakan path asli`);
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   emit(id, imageId, { status: 'processing', progress: 0, log: 'Mulai memproses video...' });
 
   try {
@@ -180,11 +197,13 @@ const runFfmpegJob = async (job) => {
 
     await runSpawn(FFMPEG_PATH, finalArgs, id, imageId);
     try { fs.unlinkSync(tempOut); } catch(e) {}
+    try { if (tempAudioPath) fs.unlinkSync(tempAudioPath); } catch(e) {}
 
     emit(id, imageId, { status:'completed', progress:100, resultUrl:`/downloads/${outName}`, log:`Selesai: ${outName}` });
 
   } catch(err) {
     console.error('[JOB ERROR]', err);
+    try { if (tempAudioPath) fs.unlinkSync(tempAudioPath); } catch(e) {}
     emit(id, imageId, { status:'error', log:`Error: ${err.message}` });
   }
 };
