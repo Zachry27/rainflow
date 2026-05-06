@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 
-export default function Settings({ settings, onUpdateSettings }) {
+export default function Settings({ settings, onUpdateSettings, onSaveSettings }) {
     const [open, setOpen] = useState(false)
 
     return (
@@ -242,6 +242,19 @@ export default function Settings({ settings, onUpdateSettings }) {
                                 </div>
                             </>
                         )}
+                    </div>
+                    <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.1)', textAlign: 'right' }}>
+                        <button 
+                            className="btn btn--primary btn--sm" 
+                            onClick={onSaveSettings}
+                            style={{ padding: '8px 16px', fontWeight: 'bold' }}
+                            id="btn-save-all-settings"
+                        >
+                            💾 Save All Settings as Default
+                        </button>
+                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', marginBottom: 0 }}>
+                            Settings akan tersimpan di akun/browser Anda dan dimuat otomatis saat dibuka kembali.
+                        </p>
                     </div>
                 </div>
             )}

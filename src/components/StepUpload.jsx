@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react'
+import PrefixPresets from './PrefixPresets'
 
 export default function StepUpload({ images, onImagesChange, settings, onUpdateSettings, outputNames, driveAccessToken }) {
     const [dragging, setDragging] = useState(false)
@@ -265,6 +266,10 @@ export default function StepUpload({ images, onImagesChange, settings, onUpdateS
                                 placeholder="crs"
                                 maxLength={10}
                                 id="input-name-prefix"
+                            />
+                            <PrefixPresets 
+                                currentPrefix={settings.namePrefix} 
+                                onApply={prefix => onUpdateSettings('namePrefix', prefix)} 
                             />
                         </div>
 

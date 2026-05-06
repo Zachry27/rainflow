@@ -8,16 +8,23 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
   const [mode, setMode] = useState('connected');
 
   const [settings, setSettings] = useState({
-    parallelLimit: 5,
+    parallelLimit: 4,
     loopMode: 'alpha_fade',
     deflicker: false,
     deshake: false,
     enableAudio: false,
-    outputType: 'count',
+    outputType: 'hours',
     outputCount: 6,
     outputDuration: 60,
+    outputHours: 3,
     fadeDuration: 1.0
   });
+  const [toastMessage, setToastMessage] = useState(null);
+
+  const showToast = (msg, isError = false) => {
+    setToastMessage({ text: msg, isError });
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const [standaloneVideos, setStandaloneVideos] = useState([]); // file objects (standalone)
   const [audioName, setAudioName] = useState(''); // selected audio filename from library
@@ -113,7 +120,18 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
     if ((settings.enableAudio === true || settings.enableAudio === 'true') && audioName) {
       formData.append('audioName', audioName);
     }
-    Object.keys(settings).forEach(key => formData.append(key, settings[key]));
+    Object.keys(settings).forEach(key => {
+      // Convert hours to duration before sending to backend if outputType is hours
+      if (key === 'outputType' && settings.outputType === 'hours') {
+          formData.append(key, 'duration');
+      } else if (key === 'outputHours') {
+          // don't send outputHours directly
+      } else if (key === 'outputDuration' && settings.outputType === 'hours') {
+          formData.append(key, settings.outputHours * 3600);
+      } else {
+          formData.append(key, settings[key])
+      }
+    });
     if (imageId) formData.append('imageId', imageId);
 
     const res = await fetch('/api/process', { method: 'POST', body: formData });
@@ -123,8 +141,8 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
 
   // ─── Start: Connected Mode ───
   const handleStartConnected = async () => {
-    if (readyImages.length === 0) return alert("Belum ada video dari Step 2 yang siap diproses!");
-    if (settings.enableAudio && !audioName) return alert("Pilih file audio dari library atau matikan Enable Audio.");
+    if (readyImages.length === 0) return showToast("Belum ada video dari Step 2 yang siap diproses!", true);
+    if (settings.enableAudio && !audioName) return showToast("Pilih file audio dari library atau matikan Enable Audio.", true);
     setIsProcessing(true);
     let ok = 0;
     for (let i = 0; i < readyImages.length; i++) {
@@ -137,17 +155,18 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
         await sendVideo(blob, `${outName}_raw.mp4`, img.id);
         ok++;
       } catch (err) {
-        alert(`Gagal video ${outName}: ${err.message}`);
+        showToast(`Gagal video ${outName}: ${err.message}`, true);
       }
     }
     setIsProcessing(false);
-    if (ok > 0) alert(`${ok} video masuk antrean BenAlus! Status tampil di bawah.`);
+    // Removed alert, just show toast
+    if (ok > 0) showToast(`${ok} video masuk antrean BenAlus! Status tampil di bawah.`);
   };
 
   // ─── Start: Standalone Mode ───
   const handleStartStandalone = async () => {
-    if (standaloneVideos.length === 0) return alert("Pilih minimal 1 file video!");
-    if (settings.enableAudio && !audioName) return alert("Pilih file audio dari library atau matikan Enable Audio.");
+    if (standaloneVideos.length === 0) return showToast("Pilih minimal 1 file video!", true);
+    if (settings.enableAudio && !audioName) return showToast("Pilih file audio dari library atau matikan Enable Audio.", true);
     setIsProcessing(true);
     let ok = 0;
     for (const file of standaloneVideos) {
@@ -155,12 +174,12 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
         await sendVideo(file, file.name, null);
         ok++;
       } catch (err) {
-        alert(`Gagal video ${file.name}: ${err.message}`);
+        showToast(`Gagal video ${file.name}: ${err.message}`, true);
       }
     }
     setIsProcessing(false);
     setStandaloneVideos([]);
-    if (ok > 0) alert(`${ok} video masuk antrean BenAlus! Status tampil di bawah.`);
+    if (ok > 0) showToast(`${ok} video masuk antrean BenAlus! Status tampil di bawah.`);
   };
 
   const canStart = backendStatus === 'online' && !isProcessing;
@@ -169,7 +188,17 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
 
   // ─── UI ───
   return (
-    <div className="benalus-container">
+    <div className="benalus-container" style={{ position: 'relative' }}>
+      {toastMessage && (
+        <div style={{
+          position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)',
+          background: toastMessage.isError ? '#ef4444' : '#10b981', color: 'white',
+          padding: '10px 20px', borderRadius: '8px', zIndex: 9999,
+          boxShadow: '0 10px 25px rgba(0,0,0,0.5)', animation: 'fadeSlideIn 0.3s ease'
+        }}>
+          {toastMessage.isError ? '⚠️' : '✅'} {toastMessage.text}
+        </div>
+      )}
 
       {/* ── Backend Status Bar ── */}
       <div className="status-bar">
@@ -340,11 +369,17 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
             <div className="form-group">
               <label>Mode Target</label>
               <select name="outputType" value={settings.outputType} onChange={handleSettingChange}>
+                <option value="hours">Berdasarkan Jam (Premium)</option>
                 <option value="count">Berdasarkan Jumlah Loop</option>
                 <option value="duration">Berdasarkan Durasi (Detik)</option>
               </select>
             </div>
-            {settings.outputType === 'count' ? (
+            {settings.outputType === 'hours' ? (
+              <div className="form-group">
+                <label>Target Durasi (Jam)</label>
+                <input type="number" name="outputHours" value={settings.outputHours} onChange={handleSettingChange} min="1" />
+              </div>
+            ) : settings.outputType === 'count' ? (
               <div className="form-group">
                 <label>Jumlah Loop</label>
                 <input type="number" name="outputCount" value={settings.outputCount} onChange={handleSettingChange} min="1" />

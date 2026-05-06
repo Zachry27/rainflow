@@ -27,6 +27,19 @@ start "BenAlus Backend" cmd /c "cd /d "%PROJECT_DIR%\benalus-backend" && node se
 echo  [3/3] Menjalankan Frontend RainFlow (port 5173)...
 start "RainFlow Frontend" cmd /c "cd /d "%PROJECT_DIR%" && npm run dev -- --host"
 
+:: ── Start Cloudflare Tunnel (Custom Domain) ──
+set "TUNNEL_TOKEN="
+for /f "tokens=2 delims==" %%a in ('findstr "CLOUDFLARE_TUNNEL_TOKEN" "%PROJECT_DIR%\.env"') do set "TUNNEL_TOKEN=%%a"
+
+if not "!TUNNEL_TOKEN!"=="" (
+    echo  [4/3] Menjalankan Cloudflare Tunnel (Custom Domain)...
+    if exist "%PROJECT_DIR%\cloudflared.exe" (
+        start "Cloudflare Tunnel" cmd /c "cd /d "%PROJECT_DIR%" && cloudflared.exe tunnel run --token !TUNNEL_TOKEN!"
+    ) else (
+        echo      [!] cloudflared.exe tidak ditemukan. Jalankan setup-tunnel.bat dulu.
+    )
+)
+
 :: Tunggu 5 detik agar semua server siap
 echo.
 echo  Menunggu server menyala...
@@ -36,8 +49,7 @@ echo.
 echo  =====================================================
 echo   SEMUA LAYANAN AKTIF!
 echo  =====================================================
-echo  Jangan tutup 3 jendela hitam yang baru terbuka.
-echo  Tutup jendela tersebut jika ingin mematikan server.
+echo  Jangan tutup jendela hitam yang baru terbuka.
 echo.
 
 :: Buka browser otomatis

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+
 const CLIENT_ID_KEY = 'rainflow_gdrive_client_id'
 const SCOPES = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file'
 
-export default function GoogleDrive({ onTokenChange }) {
+export default function GoogleDrive({ onTokenChange, onUserChange, compact = false }) {
     const [clientId, setClientId] = useState(() => localStorage.getItem(CLIENT_ID_KEY) || import.meta.env.VITE_GOOGLE_CLIENT_ID || '')
     const [token, setToken] = useState(null)
     const [userInfo, setUserInfo] = useState(null)
@@ -24,7 +25,7 @@ export default function GoogleDrive({ onTokenChange }) {
 
     // Load session from backend
     useEffect(() => {
-        if (!authJWT) return;
+        if (!authJWT) return
         const fetchSession = async () => {
             try {
                 const res = await fetch('/v1/auth/gdrive', {
@@ -40,11 +41,11 @@ export default function GoogleDrive({ onTokenChange }) {
                     }
                 }
             } catch (e) {
-                console.error("Failed to load drive session", e)
+                console.error('Failed to load drive session', e)
             }
         }
         fetchSession()
-    }, [authJWT, onTokenChange])
+    }, [authJWT])
 
     const fetchUserInfo = async (accessToken) => {
         try {
@@ -53,16 +54,17 @@ export default function GoogleDrive({ onTokenChange }) {
             })
             const info = await res.json()
             setUserInfo(info)
+            onUserChange?.({ name: info.name, email: info.email })
         } catch { /* ignore */ }
     }
 
     const saveSessionToBackend = async (cid, atoken) => {
-        if (!authJWT) return;
+        if (!authJWT) return
         await fetch('/v1/auth/gdrive', {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authJWT}` 
+                'Authorization': `Bearer ${authJWT}`
             },
             body: JSON.stringify({ client_id: cid, access_token: atoken })
         })
@@ -72,15 +74,12 @@ export default function GoogleDrive({ onTokenChange }) {
         if (!clientId.trim()) { setError('Masukkan Google Client ID terlebih dahulu'); return }
         if (!scriptLoaded) { setError('Google SDK belum siap'); return }
         setError(null)
-
         localStorage.setItem(CLIENT_ID_KEY, clientId.trim())
-
         const tokenClient = window.google.accounts.oauth2.initTokenClient({
             client_id: clientId.trim(),
             scope: SCOPES,
             callback: async (response) => {
                 if (response.error) { setError(`OAuth error: ${response.error}`); return }
-
                 const accessToken = response.access_token
                 setToken(accessToken)
                 onTokenChange(accessToken)
@@ -88,7 +87,7 @@ export default function GoogleDrive({ onTokenChange }) {
                 fetchUserInfo(accessToken)
             }
         })
-        tokenClient.requestAccessToken({prompt: 'consent'})
+        tokenClient.requestAccessToken({ prompt: 'consent' })
     }, [clientId, scriptLoaded, onTokenChange, authJWT])
 
     const disconnect = useCallback(() => {
@@ -98,9 +97,33 @@ export default function GoogleDrive({ onTokenChange }) {
         setToken(null)
         setUserInfo(null)
         onTokenChange(null)
+        onUserChange?.(null)
         saveSessionToBackend(clientId.trim(), null)
-    }, [token, onTokenChange, clientId, authJWT])
+    }, [token, onTokenChange, onUserChange, clientId, authJWT])
 
+    /* ── COMPACT MODE (for drive-chip-bar) ── */
+    if (compact) {
+        if (token) {
+            return (
+                <div className="drive-chip drive-chip--connected" id="drive-chip-connected">
+                    <span className="drive-chip__dot drive-chip__dot--on" />
+                    <span className="drive-chip__label">Drive: {userInfo?.email || 'Connected'}</span>
+                    <button className="drive-chip__btn" onClick={disconnect} id="drive-chip-disconnect">✕</button>
+                </div>
+            )
+        }
+        return (
+            <div className="drive-chip" id="drive-chip-disconnected">
+                <span className="drive-chip__dot drive-chip__dot--off" />
+                <span className="drive-chip__label">Drive tidak terkoneksi</span>
+                <button className="drive-chip__btn drive-chip__btn--connect" onClick={connect} id="drive-chip-connect">
+                    Hubungkan
+                </button>
+            </div>
+        )
+    }
+
+    /* ── FULL MODE (original, used inside steps) ── */
     if (token) {
         return (
             <div className="gdrive-connected">
@@ -121,7 +144,7 @@ export default function GoogleDrive({ onTokenChange }) {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
                     className="settings-field__input"
-                    style={{ flex: 1, minWidth: 250, padding: '6px 10px', fontSize: 12 }}
+                    style={{ flex: 1, minWidth: 200, padding: '6px 10px', fontSize: 12 }}
                     type="text"
                     value={clientId}
                     onChange={e => setClientId(e.target.value)}

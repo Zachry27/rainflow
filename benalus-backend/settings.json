@@ -1,11 +1,12 @@
 {
-  "parallelLimit": 5,
+  "parallelLimit": "4",
   "loopMode": "alpha_fade",
   "deflicker": false,
   "deshake": false,
   "enableAudio": true,
   "outputType": "count",
-  "outputCount": 6,
+  "outputCount": "20",
   "outputDuration": 60,
-  "fadeDuration": 1
+  "fadeDuration": 1,
+  "outputHours": ""
 }

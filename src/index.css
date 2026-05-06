@@ -40,7 +40,7 @@
     --shadow-glow: 0 0 30px var(--primary-glow);
     --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
@@ -85,6 +85,8 @@ body::before {
     position: relative;
     z-index: 1;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
 /* ===== SCROLLBAR ===== */
@@ -107,10 +109,9 @@ body::before {
 }
 
 /* ===== LAYOUT ===== */
+/* app-container is now obsolete — layout handled by .app-layout grid */
 .app-container {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 0 20px 60px;
+    width: 100%;
 }
 
 /* ===== HEADER ===== */
