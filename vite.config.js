@@ -36,6 +36,10 @@ export default defineConfig({
                 target: 'http://127.0.0.1:9564',
                 changeOrigin: true,
             },
+            '/v1/drive': {
+                target: 'http://127.0.0.1:9564',
+                changeOrigin: true,
+            },
             // Proxy ke GrokPI backend (Step 1, 2, 4)
             '/v1': {
                 target: 'http://127.0.0.1:9563',

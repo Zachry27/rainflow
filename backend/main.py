@@ -13,6 +13,7 @@ from app.api.generate import router as generate_router
 from app.api.ffmpeg import router as ffmpeg_router
 from app.api.auth import router as auth_router
 from app.api.admin import router as admin_router
+from app.api.drive import router as drive_router
 import app.core.models  # Important for create_all to detect tables
 
 # Create DB tables
@@ -55,6 +56,7 @@ app.add_middleware(
 # Routes
 app.include_router(auth_router, prefix="/v1/auth", tags=["auth"])
 app.include_router(admin_router, prefix="/v1/admin", tags=["admin"])
+app.include_router(drive_router, prefix="/v1", tags=["drive"])
 app.include_router(generate_router, prefix="/v1")
 app.include_router(ffmpeg_router, prefix="/v1")
 

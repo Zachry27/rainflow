@@ -27,12 +27,10 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
         setUploadStatus(prev => ({ ...prev, [img.id]: 'uploading' }))
 
         try {
-            const base = (apiUrl || '').replace(/\/$/, '')
-            const response = await fetch(`${base}/v1/drive/upload`, {
+            const response = await fetch('/v1/drive/upload', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
                 },
                 body: JSON.stringify({
                     video_url: img.videoUrl,
@@ -47,11 +45,15 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
             }
 
             const result = await response.json()
-            setUploadStatus(prev => ({ ...prev, [img.id]: result.drive_url || 'done' }))
+            if (result.success) {
+                setUploadStatus(prev => ({ ...prev, [img.id]: result.drive_url || 'done' }))
+            } else {
+                throw new Error(result.error || 'Upload gagal')
+            }
         } catch (err) {
             setUploadStatus(prev => ({ ...prev, [img.id]: `error:${err.message}` }))
         }
-    }, [driveToken, apiUrl, apiKey])
+    }, [driveToken])
 
     // Upload all done videos to Drive
     const uploadAllToDrive = useCallback(async () => {
@@ -223,9 +225,9 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                     <ChecklistItem done={totalImages > 0} label="Gambar referensi diimpor" detail={`${totalImages} gambar`} />
                     <ChecklistItem done={doneVideos.length === totalImages && totalImages > 0} label="Semua video berhasil di-generate (Step 2)" detail={`${doneVideos.length}/${totalImages} selesai`} />
                     <ChecklistItem
-                        done={doneVideos.filter(img => img.videoUrl && img.videoUrl.includes('localhost:3000')).length > 0}
+                        done={doneVideos.filter(img => img.videoUrl && img.videoUrl.includes('/downloads/')).length > 0}
                         label="Proses BenAlus Seamless Loop (Step 3)"
-                        detail={`${doneVideos.filter(img => img.videoUrl && img.videoUrl.includes('localhost:3000')).length}/${totalImages} video siap`}
+                        detail={`${doneVideos.filter(img => img.videoUrl && img.videoUrl.includes('/downloads/')).length}/${totalImages} video siap`}
                     />
                     <ChecklistItem done={Object.values(uploadStatus).filter(s => s && !String(s).startsWith('error')).length > 0} label="Upload ke Google Drive" detail={`${Object.values(uploadStatus).filter(s => s && !String(s).startsWith('error')).length} video terupload`} />
                     <ChecklistItem done={false} label="Upload video sesuai jadwal YouTube" detail="Ikuti tabel jadwal di atas" />

@@ -66,31 +66,73 @@ export default function StepUpload({ images, onImagesChange, settings, onUpdateS
                 .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
                 .setOAuthToken(driveAccessToken)
                 .setCallback(async (data) => {
+                    // Handle cancel/close — stop loading
+                    if (data.action === 'cancel' || data.action === window.google.picker.Action.CANCEL) {
+                        setGdriveLoading(false)
+                        return
+                    }
                     if (data.action !== 'picked') return
+
                     const docs = data.docs || []
-                    const newImages = await Promise.all(docs.map(async (doc) => {
-                        const resp = await fetch(
-                            `https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media`,
-                            { headers: { Authorization: `Bearer ${driveAccessToken}` } }
-                        )
-                        if (!resp.ok) {
-                            const errText = await resp.text()
-                            throw new Error(`Gagal download ${doc.name}: HTTP ${resp.status} - ${errText}`)
+                    try {
+                        const newImages = []
+                        for (const doc of docs) {
+                            try {
+                                const resp = await fetch(
+                                    `https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media`,
+                                    { headers: { Authorization: `Bearer ${driveAccessToken}` } }
+                                )
+                                if (!resp.ok) {
+                                    console.warn(`GDrive download failed for ${doc.name}: HTTP ${resp.status}`)
+                                    // Fallback: use Google's thumbnail URL as preview
+                                    const thumbUrl = doc.iconUrl || doc.url || `https://drive.google.com/thumbnail?id=${doc.id}&sz=w400`
+                                    newImages.push({
+                                        id: `gdrive_${doc.id}`,
+                                        file: new File([], doc.name, { type: doc.mimeType || 'image/jpeg' }),
+                                        name: doc.name,
+                                        preview: thumbUrl,
+                                        status: 'pending',
+                                        videoUrl: null,
+                                        error: 'Gagal download dari Drive (scope/izin)',
+                                        fromDrive: true,
+                                        driveFileId: doc.id,
+                                    })
+                                    continue
+                                }
+                                const blob = await resp.blob()
+                                const file = new File([blob], doc.name, { type: blob.type || doc.mimeType || 'image/jpeg' })
+                                newImages.push({
+                                    id: `gdrive_${doc.id}`,
+                                    file,
+                                    name: doc.name,
+                                    preview: URL.createObjectURL(blob),
+                                    status: 'pending',
+                                    videoUrl: null,
+                                    error: null,
+                                    fromDrive: true,
+                                    driveFileId: doc.id,
+                                })
+                            } catch (imgErr) {
+                                console.warn(`Error downloading ${doc.name}:`, imgErr)
+                                newImages.push({
+                                    id: `gdrive_${doc.id}`,
+                                    file: new File([], doc.name, { type: 'image/jpeg' }),
+                                    name: doc.name,
+                                    preview: `https://drive.google.com/thumbnail?id=${doc.id}&sz=w400`,
+                                    status: 'pending',
+                                    videoUrl: null,
+                                    error: imgErr.message,
+                                    fromDrive: true,
+                                    driveFileId: doc.id,
+                                })
+                            }
                         }
-                        const blob = await resp.blob()
-                        const file = new File([blob], doc.name, { type: blob.type })
-                        return {
-                            id: `gdrive_${doc.id}`,
-                            file,
-                            name: doc.name,
-                            preview: URL.createObjectURL(blob),
-                            status: 'pending',
-                            videoUrl: null,
-                            error: null,
-                            fromDrive: true,
+                        if (newImages.length > 0) {
+                            onImagesChange([...images, ...newImages])
                         }
-                    }))
-                    onImagesChange([...images, ...newImages])
+                    } catch (batchErr) {
+                        alert('Error saat import gambar: ' + batchErr.message)
+                    }
                     setGdriveLoading(false)
                 })
                 .build()

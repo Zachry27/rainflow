@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 const CLIENT_ID_KEY = 'rainflow_gdrive_client_id'
-const SCOPES = 'https://www.googleapis.com/auth/drive.readonly'
+const SCOPES = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file'
 
 export default function GoogleDrive({ onTokenChange }) {
     const [clientId, setClientId] = useState(() => localStorage.getItem(CLIENT_ID_KEY) || import.meta.env.VITE_GOOGLE_CLIENT_ID || '')
