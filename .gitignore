@@ -24,6 +24,10 @@ desktop.ini
 sso_state.json
 key.txt
 
+# Binary executables (jangan di-commit, download manual)
+*.exe
+cloudflared.exe
+
 # Large media files
 backend/data/videos/
 benalus-backend/uploads/
