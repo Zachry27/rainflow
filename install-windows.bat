@@ -52,16 +52,23 @@ if %errorLevel% EQU 0 (
 echo.
 
 :: ============================================================
-::  STEP 3 - INSTALL GIT
+::  STEP 3 - INSTALL GIT & PYTHON
 :: ============================================================
-echo  [3/6] Mengecek Git...
+echo  [3/6] Mengecek Git dan Python...
 where git >nul 2>&1
 if %errorLevel% EQU 0 (
     echo  [OK] Git sudah terinstall, skip...
 ) else (
     echo  [INFO] Menginstall Git...
     choco install git -y
-    echo  [OK] Git berhasil diinstall!
+)
+
+where python >nul 2>&1
+if %errorLevel% EQU 0 (
+    echo  [OK] Python sudah terinstall, skip...
+) else (
+    echo  [INFO] Menginstall Python...
+    choco install python -y
 )
 echo.
 

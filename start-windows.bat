@@ -48,6 +48,15 @@ if exist "%BACKEND_DIR%\server.cjs" (
 )
 echo.
 
+:: ── Start Backend Python (GrokPI - port 9564) ──
+echo  [2/3] Menjalankan Backend Python (GrokPI - port 9564)...
+if exist "%INSTALL_DIR%\backend\START BACKEND.bat" (
+    start "Python Backend" cmd /c "cd /d "%INSTALL_DIR%\backend" && call "START BACKEND.bat""
+) else (
+    echo  [WARN] START BACKEND.bat tidak ditemukan di: %INSTALL_DIR%\backend
+)
+echo.
+
 :: ── Pastikan dependencies frontend terinstall ──
 if not exist "%INSTALL_DIR%\node_modules" (
     echo  [INFO] node_modules frontend belum ada, install dulu...
@@ -59,7 +68,7 @@ if not exist "%INSTALL_DIR%\node_modules" (
 )
 
 :: ── Start Frontend RainFlow (port 5173) ──
-echo  [2/2] Menjalankan Frontend RainFlow (port 5173)...
+echo  [3/3] Menjalankan Frontend RainFlow (port 5173)...
 start "RainFlow Frontend" cmd /c "cd /d "%INSTALL_DIR%" && npm run dev -- --host"
 
 :: Tunggu frontend siap
