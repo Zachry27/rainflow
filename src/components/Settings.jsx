@@ -32,7 +32,7 @@ export default function Settings({ settings, onUpdateSettings }) {
                                 type="text"
                                 value={settings.apiUrl}
                                 onChange={e => onUpdateSettings('apiUrl', e.target.value)}
-                                placeholder="http://127.0.0.1:9563"
+                                placeholder="(Kosongkan untuk proxy otomatis)"
                                 id="input-api-url"
                             />
                         </div>

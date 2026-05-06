@@ -13,7 +13,7 @@ export default function App() {
     const [images, setImages] = useState([])
     const [driveToken, setDriveToken] = useState(null)
     const [settings, setSettings] = useState({
-        apiUrl: import.meta.env.VITE_GROKPI_API_URL || 'http://127.0.0.1:9564',
+        apiUrl: import.meta.env.VITE_GROKPI_API_URL || '',
         apiKey: import.meta.env.VITE_GROKPI_API_KEY || 'rainflow-secret',
         prompt: 'Relaxing rain falling on a window with cozy ambient lighting, seamless loop, 4K quality',
         aspectRatio: '16:9',
