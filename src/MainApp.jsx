@@ -237,6 +237,8 @@ export default function MainApp() {
                 settings={settings}
                 onUpdateSettings={updateSettings}
                 onSaveSettings={saveSettingsToDefault}
+                setDriveToken={setDriveToken}
+                setDriveUser={setDriveUser}
             />
         </div>
     )

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
+import GoogleDrive from './GoogleDrive'
 
-export default function SettingsSheet({ isOpen, onClose, settings, onUpdateSettings, onSaveSettings }) {
+export default function SettingsSheet({ isOpen, onClose, settings, onUpdateSettings, onSaveSettings, setDriveToken, setDriveUser }) {
     const [activeTab, setActiveTab] = useState('api')
 
     if (!isOpen) return null
@@ -25,6 +26,7 @@ export default function SettingsSheet({ isOpen, onClose, settings, onUpdateSetti
                 <div className="sheet__tabs">
                     {[
                         { id: 'api',    label: '🔌 API' },
+                        { id: 'drive',  label: '📂 Drive' },
                         { id: 'video',  label: '🎬 Video' },
                         { id: 'ffmpeg', label: '🔁 FFmpeg' },
                         { id: 'naming', label: '🏷️ Naming' },
@@ -42,6 +44,18 @@ export default function SettingsSheet({ isOpen, onClose, settings, onUpdateSetti
 
                 {/* Content */}
                 <div className="sheet__body">
+
+                    {activeTab === 'drive' && (
+                        <div className="sheet__section">
+                            <div className="settings-field">
+                                <label className="settings-field__label">Integrasi Google Drive</label>
+                                <p style={{fontSize: 13, color: 'var(--text-dim)', marginBottom: 12}}>
+                                    Isi Client ID di bawah dan klik Connect Drive untuk dapat mengambil gambar dari Drive dan upload video hasil generate.
+                                </p>
+                                <GoogleDrive onTokenChange={setDriveToken} onUserChange={setDriveUser} />
+                            </div>
+                        </div>
+                    )}
 
                     {activeTab === 'api' && (
                         <div className="sheet__section">
