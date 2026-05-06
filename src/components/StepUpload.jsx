@@ -63,6 +63,7 @@ export default function StepUpload({ images, onImagesChange, settings, onUpdateS
             const picker = new window.google.picker.PickerBuilder()
                 .addView(new window.google.picker.DocsView()
                     .setMimeTypes('image/jpeg,image/png,image/webp,image/gif'))
+                .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
                 .setOAuthToken(driveAccessToken)
                 .setCallback(async (data) => {
                     if (data.action !== 'picked') return
@@ -72,6 +73,10 @@ export default function StepUpload({ images, onImagesChange, settings, onUpdateS
                             `https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media`,
                             { headers: { Authorization: `Bearer ${driveAccessToken}` } }
                         )
+                        if (!resp.ok) {
+                            const errText = await resp.text()
+                            throw new Error(`Gagal download ${doc.name}: HTTP ${resp.status} - ${errText}`)
+                        }
                         const blob = await resp.blob()
                         const file = new File([blob], doc.name, { type: blob.type })
                         return {
