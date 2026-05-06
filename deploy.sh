@@ -45,7 +45,7 @@ server {
 
     # Backend API proxy
     location /v1/ {
-        proxy_pass http://127.0.0.1:9564;
+        proxy_pass http://127.0.0.1:9563;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -83,5 +83,5 @@ systemctl start rainflow-api
 echo ""
 echo "✅ RainFlow deployed!"
 echo "🌐 Frontend: http://$(curl -s ifconfig.me)"
-echo "🔧 Backend:  http://$(curl -s ifconfig.me):9564"
+echo "🔧 Backend:  http://$(curl -s ifconfig.me):9563"
 echo ""

@@ -7,9 +7,9 @@ export default defineConfig({
         port: 5173,
         host: true, // supaya bisa diakses via IP di RDP
         proxy: {
-            // Proxy ke Rainflow Python backend (Step 1, 2, 4)
+            // Proxy ke GrokPI backend (Step 1, 2, 4)
             '/v1': {
-                target: 'http://127.0.0.1:9564',
+                target: 'http://127.0.0.1:9563',
                 changeOrigin: true,
             },
             // Proxy ke BenAlus Node.js backend (Step 3)
@@ -26,6 +26,11 @@ export default defineConfig({
                 target: 'http://127.0.0.1:3000',
                 changeOrigin: true,
                 ws: true, // penting! untuk WebSocket
+            },
+            // Proxy audio library dari BenAlus backend
+            '/audio-assets': {
+                target: 'http://127.0.0.1:3000',
+                changeOrigin: true,
             },
         },
     },

@@ -20,7 +20,8 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
   });
 
   const [standaloneVideos, setStandaloneVideos] = useState([]); // file objects (standalone)
-  const [audioFile, setAudioFile] = useState(null);
+  const [audioName, setAudioName] = useState(''); // selected audio filename from library
+  const [audioList, setAudioList] = useState([]); // list from /api/audio-list
   const [jobs, setJobs] = useState([]);
   // Pakai URL relatif — semua di-proxy Vite ke backend port 3000 secara internal
   const backendUrl = '';
@@ -40,6 +41,12 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
         setBackendStatus('online');
       })
       .catch(() => setBackendStatus('offline'));
+
+    // Ambil daftar audio dari library
+    fetch('/api/audio-list')
+      .then(res => res.json())
+      .then(data => setAudioList(data.files || []))
+      .catch(() => setAudioList([]));
 
     import('https://cdn.socket.io/4.7.4/socket.io.esm.min.js').then((module) => {
       const io = module.io || module.default;
@@ -102,8 +109,9 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
     const file = videoBlob instanceof File ? videoBlob : new File([videoBlob], fileName, { type: 'video/mp4' });
     const formData = new FormData();
     formData.append('video', file);
-    if ((settings.enableAudio === true || settings.enableAudio === 'true') && audioFile) {
-      formData.append('audio', audioFile);
+    // Kirim nama file audio dari library (tidak upload file)
+    if ((settings.enableAudio === true || settings.enableAudio === 'true') && audioName) {
+      formData.append('audioName', audioName);
     }
     Object.keys(settings).forEach(key => formData.append(key, settings[key]));
     if (imageId) formData.append('imageId', imageId);
@@ -116,7 +124,7 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
   // ─── Start: Connected Mode ───
   const handleStartConnected = async () => {
     if (readyImages.length === 0) return alert("Belum ada video dari Step 2 yang siap diproses!");
-    if (settings.enableAudio && !audioFile) return alert("Pilih file audio atau matikan Enable Audio.");
+    if (settings.enableAudio && !audioName) return alert("Pilih file audio dari library atau matikan Enable Audio.");
     setIsProcessing(true);
     let ok = 0;
     for (let i = 0; i < readyImages.length; i++) {
@@ -139,7 +147,7 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
   // ─── Start: Standalone Mode ───
   const handleStartStandalone = async () => {
     if (standaloneVideos.length === 0) return alert("Pilih minimal 1 file video!");
-    if (settings.enableAudio && !audioFile) return alert("Pilih file audio atau matikan Enable Audio.");
+    if (settings.enableAudio && !audioName) return alert("Pilih file audio dari library atau matikan Enable Audio.");
     setIsProcessing(true);
     let ok = 0;
     for (const file of standaloneVideos) {
@@ -265,9 +273,31 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
         </div>
         {settings.enableAudio && (
           <div className="form-group" style={{ marginTop: '15px' }}>
-            <label>Audio Input (MP3, WAV, AAC)</label>
-            <input type="file" accept="audio/*" onChange={e => setAudioFile(e.target.files[0])} />
-            {audioFile && <p style={{ fontSize: '0.8rem', color: '#4ade80', marginTop: '5px' }}>✅ {audioFile.name}</p>}
+            <label>🎵 Pilih Audio dari Library</label>
+            {audioList.length === 0 ? (
+              <div style={{ padding: '10px 14px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', fontSize: '0.85rem', color: '#94a3b8' }}>
+                ⚠️ Belum ada file audio. Tambahkan file <code>.mp3</code> / <code>.wav</code> ke folder{' '}
+                <code style={{ color: '#a5b4fc' }}>public/audio/</code> lalu refresh halaman.
+              </div>
+            ) : (
+              <select
+                value={audioName}
+                onChange={e => setAudioName(e.target.value)}
+                style={{ width: '100%', padding: '8px 12px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#e2e8f0', fontSize: '0.9rem', cursor: 'pointer' }}
+              >
+                <option value="">-- Pilih Audio --</option>
+                {audioList.map(f => (
+                  <option key={f.name} value={f.name}>
+                    🎵 {f.name}  ({(f.size / (1024 * 1024)).toFixed(2)} MB)
+                  </option>
+                ))}
+              </select>
+            )}
+            {audioName && (
+              <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <audio controls src={`/audio-assets/${encodeURIComponent(audioName)}`} style={{ flex: 1, height: '36px', width: '100%', borderRadius: '6px' }} />
+              </div>
+            )}
           </div>
         )}
       </div>

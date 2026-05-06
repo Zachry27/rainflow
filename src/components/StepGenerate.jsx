@@ -31,6 +31,7 @@ async function runPool(tasks, concurrency, onProgress) {
 
 export default function StepGenerate({ images, onImagesChange, settings, onUpdateSettings, outputNames, onComplete }) {
     const [generating, setGenerating] = useState(false)
+    const [apiStatus, setApiStatus] = useState('checking') // 'checking', 'connected', 'error'
     const abortRef = useRef(false)
 
     const totalImages = images.length
@@ -149,6 +150,32 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
         if (allDone && !generating) onComplete()
     }, [allDone, generating, onComplete])
 
+    // Check API Connection
+    React.useEffect(() => {
+        let mounted = true
+        const checkConnection = async () => {
+            setApiStatus('checking')
+            try {
+                // Remove trailing slash to prevent CORS/redirect issues
+                const url = settings.apiUrl.replace(/\/$/, '')
+                // Some backends might not allow root /, so we can just check if it resolves or returns an HTTP status
+                const res = await fetch(url, { method: 'GET' })
+                if (mounted) {
+                    setApiStatus(res.ok || res.status === 404 || res.status === 405 ? 'connected' : 'error')
+                }
+            } catch (err) {
+                if (mounted) setApiStatus('error')
+            }
+        }
+        
+        // Add a slight debounce to avoid spamming if user is typing the URL
+        const timer = setTimeout(checkConnection, 500)
+        return () => { 
+            mounted = false
+            clearTimeout(timer)
+        }
+    }, [settings.apiUrl])
+
     if (images.length === 0) {
         return (
             <div className="card">
@@ -173,8 +200,31 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
                 </h3>
                 <p className="card__desc">
                     Prompt ini digunakan untuk <strong>semua gambar</strong>. Gambar referensi dikirim sebagai input image-to-video.
-                    Backend: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: 11 }}>{settings.apiUrl}</code>
                 </p>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'var(--bg-lighter)', borderRadius: '6px', fontSize: '12px', border: '1px solid var(--border)', marginBottom: '16px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Backend API:</span>
+                    <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: '11px' }}>{settings.apiUrl}</code>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '4px' }}>
+                        <span style={{ 
+                            width: '10px', 
+                            height: '10px', 
+                            borderRadius: '50%', 
+                            background: apiStatus === 'connected' ? 'var(--success)' : apiStatus === 'checking' ? '#f59e0b' : 'var(--error)',
+                            boxShadow: apiStatus === 'connected' ? '0 0 8px var(--success)' : 'none',
+                            transition: 'all 0.3s ease'
+                        }} />
+                        <span style={{ 
+                            color: apiStatus === 'connected' ? 'var(--success)' : apiStatus === 'checking' ? '#f59e0b' : 'var(--error)', 
+                            fontWeight: 600,
+                            fontSize: '10px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px'
+                        }}>
+                            {apiStatus === 'connected' ? 'Connected' : apiStatus === 'checking' ? 'Checking...' : 'Disconnected'}
+                        </span>
+                    </div>
+                </div>
 
                 {/* Preset Manager */}
                 <PromptPresets

@@ -19,20 +19,57 @@ app.use(express.json());
 // Paths
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const SETTINGS_FILE = path.join(__dirname, 'settings.json');
+const AUDIO_DIR = path.join(__dirname, '..', 'public', 'audio');
 
-// Auto-detect ffmpeg: prefer system PATH, fallback to parent folder
+// Load .env from project root (one level up from benalus-backend/)
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+
+// ─── FFmpeg Resolution (Priority Order) ───────────────────────────────────
+// 1. FFMPEG_DIR in .env   → manual override (per-machine, gitignored)
+// 2. ffmpeg-static npm    → auto-downloaded binary on `npm install` ✅ RECOMMENDED
+// 3. System PATH          → if ffmpeg installed globally
+// 4. Parent folder        → legacy fallback
 const which = (cmd) => {
   try {
-    const result = require('child_process').execSync(`where ${cmd}`, { stdio: ['pipe','pipe','ignore'] });
-    return result.toString().trim().split('\n')[0].trim();
+    const r = require('child_process').execSync(`where ${cmd}`, { stdio: ['pipe','pipe','ignore'] });
+    return r.toString().trim().split('\n')[0].trim();
   } catch(e) { return null; }
 };
 
-const FFMPEG_PATH  = which('ffmpeg')  || path.join(__dirname, '..', 'ffmpeg.exe');
-const FFPROBE_PATH = which('ffprobe') || path.join(__dirname, '..', 'ffprobe.exe');
+const resolveFFTool = (name) => {
+  // 1. .env override
+  if (process.env.FFMPEG_DIR) {
+    const p = path.join(process.env.FFMPEG_DIR, process.platform === 'win32' ? `${name}.exe` : name);
+    if (fs.existsSync(p)) { console.log(`[ffmpeg] Using .env override: ${p}`); return p; }
+  }
+  // 2. npm package (ffmpeg-static / @ffprobe-installer)
+  try {
+    if (name === 'ffmpeg') {
+      const p = require('ffmpeg-static');
+      if (p && fs.existsSync(p)) { console.log(`[ffmpeg] Using npm package: ${p}`); return p; }
+    } else if (name === 'ffprobe') {
+      const { path: p } = require('@ffprobe-installer/ffprobe');
+      if (p && fs.existsSync(p)) { console.log(`[ffmpeg] Using npm package: ${p}`); return p; }
+    }
+  } catch(e) { /* package not installed */ }
+  // 3. System PATH
+  const fromPath = which(name);
+  if (fromPath) { console.log(`[ffmpeg] Using system PATH: ${fromPath}`); return fromPath; }
+  // 4. Legacy parent folder
+  const legacy = path.join(__dirname, '..', process.platform === 'win32' ? `${name}.exe` : name);
+  if (fs.existsSync(legacy)) { console.log(`[ffmpeg] Using legacy path: ${legacy}`); return legacy; }
+
+  console.warn(`[WARN] ${name} tidak ditemukan! Jalankan: npm install (di folder benalus-backend)`);
+  return name;
+};
+
+const FFMPEG_PATH  = resolveFFTool('ffmpeg');
+const FFPROBE_PATH = resolveFFTool('ffprobe');
+
 
 // Create uploads dir if not exists
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+if (!fs.existsSync(AUDIO_DIR)) fs.mkdirSync(AUDIO_DIR, { recursive: true });
 
 // Multer Config
 const storage = multer.diskStorage({
@@ -81,7 +118,13 @@ const getDuration = (filePath) => new Promise((resolve) => {
 const emit = (id, imageId, payload) => io.emit('job_status', { id, imageId, ...payload });
 
 const runFfmpegJob = async (job) => {
-  const { id, imageId, videoFile, audioFile, opts } = job;
+  const { id, imageId, videoFile, audioFile, audioName, opts } = job;
+  // Resolve audio: prefer uploaded file, else use asset from audio library
+  let resolvedAudioPath = audioFile ? audioFile.path : null;
+  if (!resolvedAudioPath && audioName) {
+    const candidate = path.join(AUDIO_DIR, path.basename(audioName)); // prevent path traversal
+    if (fs.existsSync(candidate)) resolvedAudioPath = candidate;
+  }
   emit(id, imageId, { status: 'processing', progress: 0, log: 'Mulai memproses video...' });
 
   try {
@@ -127,8 +170,8 @@ const runFfmpegJob = async (job) => {
     if (opts.outputType === 'count') finalArgs.push('-stream_loop', String(count - 1), '-i', tempOut);
     else finalArgs.push('-stream_loop', '-1', '-i', tempOut);
 
-    const hasAudio = (opts.enableAudio === true || opts.enableAudio === 'true') && audioFile;
-    if (hasAudio) finalArgs.push('-stream_loop', '-1', '-i', audioFile.path);
+    const hasAudio = (opts.enableAudio === true || opts.enableAudio === 'true') && resolvedAudioPath;
+    if (hasAudio) finalArgs.push('-stream_loop', '-1', '-i', resolvedAudioPath);
 
     finalArgs.push('-c:v', 'copy');
     if (hasAudio) finalArgs.push('-c:a','aac','-b:a','192k','-map','0:v:0','-map','1:a:0');
@@ -159,14 +202,31 @@ const runSpawn = (cmd, args, jobId, imageId) => new Promise((resolve, reject) =>
 app.get('/api/settings', (req, res) => res.json(settings));
 app.post('/api/settings', (req, res) => { settings = {...settings, ...req.body}; saveSettings(); res.json({success:true}); });
 
+// Audio Library: list files in public/audio
+app.get('/api/audio-list', (req, res) => {
+  try {
+    const AUDIO_EXTS = ['.mp3', '.wav', '.ogg', '.aac', '.flac', '.m4a'];
+    const files = fs.readdirSync(AUDIO_DIR)
+      .filter(f => AUDIO_EXTS.includes(path.extname(f).toLowerCase()) && !f.startsWith('.'))
+      .map(f => ({ name: f, size: fs.statSync(path.join(AUDIO_DIR, f)).size }));
+    res.json({ files });
+  } catch (e) {
+    res.json({ files: [] });
+  }
+});
+
+// Serve audio files as static
+app.use('/audio-assets', express.static(AUDIO_DIR));
+
 app.post('/api/process', upload.fields([{name:'video'},{name:'audio'}]), (req, res) => {
   const videoFile = req.files?.video?.[0];
-  const audioFile = req.files?.audio?.[0];
+  const audioFile = req.files?.audio?.[0]; // uploaded file (optional)
+  const audioName = req.body.audioName || null; // asset filename from library
   if (!videoFile) return res.status(400).json({error:'Video file required'});
 
   const jobId   = Date.now().toString();
   const imageId = req.body.imageId || null;
-  queue.push({ id:jobId, imageId, videoFile, audioFile, opts:{...settings,...req.body} });
+  queue.push({ id:jobId, imageId, videoFile, audioFile, audioName, opts:{...settings,...req.body} });
   console.log(`[QUEUE] Job ${jobId} added. Queue: ${queue.length}`);
   processQueue();
   res.json({ jobId, imageId, message:'Added to queue' });

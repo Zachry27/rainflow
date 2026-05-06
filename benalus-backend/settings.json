@@ -1,0 +1,11 @@
+{
+  "parallelLimit": 5,
+  "loopMode": "alpha_fade",
+  "deflicker": false,
+  "deshake": false,
+  "enableAudio": true,
+  "outputType": "count",
+  "outputCount": 6,
+  "outputDuration": 60,
+  "fadeDuration": 1
+}
