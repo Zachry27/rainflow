@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-
+import { useAuth } from '../contexts/AuthContext'
 const CLIENT_ID_KEY = 'rainflow_gdrive_client_id'
 const SCOPES = 'https://www.googleapis.com/auth/drive.file'
 
@@ -10,6 +10,8 @@ export default function GoogleDrive({ onTokenChange }) {
     const [error, setError] = useState(null)
     const [scriptLoaded, setScriptLoaded] = useState(false)
 
+    const { token: authJWT } = useAuth()
+
     // Load Google Identity Services script
     useEffect(() => {
         if (window.google?.accounts?.oauth2) { setScriptLoaded(true); return }
@@ -19,6 +21,52 @@ export default function GoogleDrive({ onTokenChange }) {
         script.onerror = () => setError('Gagal memuat Google SDK')
         document.head.appendChild(script)
     }, [])
+
+    // Load session from backend
+    useEffect(() => {
+        if (!authJWT) return;
+        const fetchSession = async () => {
+            try {
+                const res = await fetch('/v1/auth/gdrive', {
+                    headers: { 'Authorization': `Bearer ${authJWT}` }
+                })
+                if (res.ok) {
+                    const data = await res.json()
+                    if (data.client_id) setClientId(data.client_id)
+                    if (data.access_token) {
+                        setToken(data.access_token)
+                        onTokenChange(data.access_token)
+                        fetchUserInfo(data.access_token)
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to load drive session", e)
+            }
+        }
+        fetchSession()
+    }, [authJWT, onTokenChange])
+
+    const fetchUserInfo = async (accessToken) => {
+        try {
+            const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            })
+            const info = await res.json()
+            setUserInfo(info)
+        } catch { /* ignore */ }
+    }
+
+    const saveSessionToBackend = async (cid, atoken) => {
+        if (!authJWT) return;
+        await fetch('/v1/auth/gdrive', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authJWT}` 
+            },
+            body: JSON.stringify({ client_id: cid, access_token: atoken })
+        })
+    }
 
     const connect = useCallback(() => {
         if (!clientId.trim()) { setError('Masukkan Google Client ID terlebih dahulu'); return }
@@ -36,19 +84,12 @@ export default function GoogleDrive({ onTokenChange }) {
                 const accessToken = response.access_token
                 setToken(accessToken)
                 onTokenChange(accessToken)
-
-                // Get user info
-                try {
-                    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                        headers: { Authorization: `Bearer ${accessToken}` }
-                    })
-                    const info = await res.json()
-                    setUserInfo(info)
-                } catch { /* ignore */ }
+                saveSessionToBackend(clientId.trim(), accessToken)
+                fetchUserInfo(accessToken)
             }
         })
         tokenClient.requestAccessToken()
-    }, [clientId, scriptLoaded, onTokenChange])
+    }, [clientId, scriptLoaded, onTokenChange, authJWT])
 
     const disconnect = useCallback(() => {
         if (token && window.google?.accounts?.oauth2) {
@@ -57,7 +98,8 @@ export default function GoogleDrive({ onTokenChange }) {
         setToken(null)
         setUserInfo(null)
         onTokenChange(null)
-    }, [token, onTokenChange])
+        saveSessionToBackend(clientId.trim(), null)
+    }, [token, onTokenChange, clientId, authJWT])
 
     if (token) {
         return (

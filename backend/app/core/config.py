@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     PORT: int = 9564
     DEBUG: bool = False
     API_KEY: str = "rainflow-secret"
+    
+    SECRET_KEY: str = "rainflow-super-secret-jwt-key"
+    DATABASE_URL: str = "sqlite:///./data/rainflow.db"
 
     CF_CLEARANCE: str = ""
     PROXY_URL: Optional[str] = None

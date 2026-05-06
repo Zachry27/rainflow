@@ -7,9 +7,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logger import logger
+from app.core.database import engine, Base
 from app.services.sso_manager import sso_manager
 from app.api.generate import router as generate_router
 from app.api.ffmpeg import router as ffmpeg_router
+from app.api.auth import router as auth_router
+from app.api.admin import router as admin_router
+import app.core.models  # Important for create_all to detect tables
+
+# Create DB tables
+Base.metadata.create_all(bind=engine)
 
 
 @asynccontextmanager
@@ -46,6 +53,8 @@ app.add_middleware(
 )
 
 # Routes
+app.include_router(auth_router, prefix="/v1/auth", tags=["auth"])
+app.include_router(admin_router, prefix="/v1/admin", tags=["admin"])
 app.include_router(generate_router, prefix="/v1")
 app.include_router(ffmpeg_router, prefix="/v1")
 
