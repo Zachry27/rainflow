@@ -26,6 +26,8 @@ key.txt
 
 # Large media files
 backend/data/videos/
+benalus-backend/uploads/
+public/audio/
 *.mp4
 *.mp3
 *.wav
