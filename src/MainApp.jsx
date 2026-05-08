@@ -11,6 +11,7 @@ import StepProcess from './components/StepProcess'
 import StepExport from './components/StepExport'
 import StorageManager from './components/StorageManager'
 import Dashboard from './components/Dashboard'
+import InstallPrompt from './components/InstallPrompt'
 
 export default function MainApp() {
     const [activeStep, setActiveStep] = useState('dashboard')
@@ -318,6 +319,9 @@ export default function MainApp() {
                 isOpen={isStorageOpen}
                 onClose={() => setIsStorageOpen(false)}
             />
+
+            {/* ── PWA Install Prompt ── */}
+            <InstallPrompt />
         </div>
     )
 }

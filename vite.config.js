@@ -6,18 +6,33 @@ export default defineConfig({
     plugins: [
         react(),
         VitePWA({
-            registerType: 'autoUpdate',
+            registerType: 'prompt',
+            injectRegister: false,
+            includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
             manifest: {
-                name: 'RainFlow',
+                name: 'RainFlow — YouTube Content Creator',
                 short_name: 'RainFlow',
-                theme_color: '#000000',
-                background_color: '#000000',
+                description: 'YouTube Content Creator Pipeline – Generate, loop, and upload videos.',
+                theme_color: '#6366f1',
+                background_color: '#030712',
                 display: 'standalone',
+                start_url: '.',
                 icons: [
                     {
-                        src: 'https://cdn-icons-png.flaticon.com/512/1146/1146124.png',
+                        src: 'icons/icon-192.png',
+                        sizes: '192x192',
+                        type: 'image/png'
+                    },
+                    {
+                        src: 'icons/icon-512.png',
                         sizes: '512x512',
                         type: 'image/png'
+                    },
+                    {
+                        src: 'icons/icon-512.png',
+                        sizes: '512x512',
+                        type: 'image/png',
+                        purpose: 'maskable'
                     }
                 ]
             }
