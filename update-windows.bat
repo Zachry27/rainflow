@@ -44,9 +44,9 @@ if %errorLevel% EQU 0 (
 echo.
 
 :: ============================================================
-::  STEP 2 - BACKUP FILE SETTINGS LOKAL
+::  STEP 2 - BACKUP settings.json LALU RESET SEMUA FILE KONFLIK
 :: ============================================================
-echo  [2/4] Backup file settings lokal...
+echo  [2/4] Backup settings lokal dan reset file konflik...
 
 set SETTINGS_FILE=benalus-backend\settings.json
 set SETTINGS_BACKUP=benalus-backend\settings.json.bak
@@ -58,8 +58,9 @@ if exist "%SETTINGS_FILE%" (
     echo  [INFO] settings.json tidak ditemukan, skip backup.
 )
 
-:: Reset file yang sering konflik agar git pull tidak gagal
-git checkout -- "%SETTINGS_FILE%" >nul 2>&1
+:: Reset SEMUA perubahan lokal di file tracked (bukan untracked)
+git checkout -- . >nul 2>&1
+echo  [OK] File lokal yang konflik sudah di-reset.
 echo.
 
 :: ============================================================
@@ -69,7 +70,6 @@ echo  [3/4] Mengambil update terbaru dari GitHub...
 git pull origin main
 if %errorLevel% NEQ 0 (
     echo  [ERROR] Git pull gagal! Periksa koneksi internet atau status repo.
-    :: Restore backup jika pull gagal
     if exist "%SETTINGS_BACKUP%" (
         copy /Y "%SETTINGS_BACKUP%" "%SETTINGS_FILE%" >nul
         del "%SETTINGS_BACKUP%" >nul
