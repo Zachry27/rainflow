@@ -272,34 +272,50 @@ app.post('/api/process', upload.fields([{name:'video'},{name:'audio'}]), async (
 
   if (!videoFile && !videoUrl) return res.status(400).json({error:'Video file or videoUrl required'});
 
+  const jobId   = Date.now().toString() + Math.random().toString().slice(2, 6);
+  const imageId = req.body.imageId || null;
+
   // Download video from URL if provided instead of file
   if (!videoFile && videoUrl) {
-    try {
-      console.log(`[DOWNLOAD] Fetching video from URL: ${videoUrl}`);
-      // Use global fetch (Node 18+)
-      const fetchReq = typeof fetch !== 'undefined' ? fetch : (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-      const resp = await fetchReq(videoUrl);
-      
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const arrayBuffer = await resp.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      
-      const outPath = path.join(UPLOADS_DIR, `${Date.now()}_${fileName}`);
-      fs.writeFileSync(outPath, buffer);
-      videoFile = { path: outPath, originalname: fileName };
-      console.log(`[DOWNLOAD] Success: ${outPath}`);
-    } catch (err) {
-      console.error('[DOWNLOAD ERROR]', err);
-      return res.status(500).json({error: `Gagal download video dari URL: ${err.message}`});
-    }
-  }
+    // 1. Send response immediately to unblock frontend!
+    res.json({ jobId, imageId, message:'Downloading in background and added to queue' });
 
-  const jobId   = Date.now().toString();
-  const imageId = req.body.imageId || null;
-  queue.push({ id:jobId, imageId, videoFile, audioFile, audioName, opts:{...settings,...req.body} });
-  console.log(`[QUEUE] Job ${jobId} added. Queue: ${queue.length}`);
-  processQueue();
-  res.json({ jobId, imageId, message:'Added to queue' });
+    // 2. Download asynchronously in background
+    (async () => {
+      try {
+        console.log(`[DOWNLOAD] Fetching video from URL: ${videoUrl}`);
+        emit(jobId, imageId, { status: 'processing', progress: 0, log: 'Sedang mengunduh video dari server...' });
+        
+        // Use global fetch (Node 18+)
+        const fetchReq = typeof fetch !== 'undefined' ? fetch : (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+        const resp = await fetchReq(videoUrl);
+        
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const arrayBuffer = await resp.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        
+        const outPath = path.join(UPLOADS_DIR, `${Date.now()}_${fileName}`);
+        require('fs').promises.writeFile(outPath, buffer).then(() => {
+          videoFile = { path: outPath, originalname: fileName };
+          console.log(`[DOWNLOAD] Success: ${outPath}`);
+          
+          // Add to FFmpeg queue
+          queue.push({ id:jobId, imageId, videoFile, audioFile, audioName, opts:{...settings,...req.body} });
+          console.log(`[QUEUE] Job ${jobId} added. Queue: ${queue.length}`);
+          processQueue();
+        });
+      } catch (err) {
+        console.error('[DOWNLOAD ERROR]', err);
+        emit(jobId, imageId, { status: 'error', log: `Gagal download video: ${err.message}` });
+      }
+    })();
+  } else {
+    // Normal file upload mode
+    queue.push({ id:jobId, imageId, videoFile, audioFile, audioName, opts:{...settings,...req.body} });
+    console.log(`[QUEUE] Job ${jobId} added. Queue: ${queue.length}`);
+    processQueue();
+    res.json({ jobId, imageId, message:'Added to queue' });
+  }
 });
 
 app.get('/api/queue', (req, res) => res.json({ queued:queue.length, active:activeJobs, parallelLimit:settings.parallelLimit }));

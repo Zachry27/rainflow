@@ -134,21 +134,29 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
   const handleStartConnected = async () => {
     if (readyImages.length === 0) return showToast("Belum ada video dari Step 2 yang siap diproses!", true);
     if (settings.enableAudio && !audioName) return showToast("Pilih file audio dari library atau matikan Enable Audio.", true);
+    
     setIsProcessing(true);
     let ok = 0;
-    for (let i = 0; i < readyImages.length; i++) {
-      const img = readyImages[i];
+    showToast(`Mengirim ${readyImages.length} video ke antrean BenAlus...`);
+    
+    const sendPromises = readyImages.map(async (img, i) => {
       const originalIndex = (images || []).findIndex(m => m.id === img.id);
       const outName = (outputNames && outputNames[originalIndex]) ? outputNames[originalIndex] : `video_${i}`;
       try {
         await sendVideo(img.videoUrl, `${outName}_raw.mp4`, img.id);
-        ok++;
+        return { success: true };
       } catch (err) {
-        showToast(`Gagal video ${outName}: ${err.message}`, true);
+        return { success: false, name: outName, error: err.message };
       }
-    }
+    });
+
+    const results = await Promise.all(sendPromises);
+    results.forEach(res => {
+      if (res.success) ok++;
+      else showToast(`Gagal video ${res.name}: ${res.error}`, true);
+    });
+
     setIsProcessing(false);
-    // Removed alert, just show toast
     if (ok > 0) showToast(`${ok} video masuk antrean BenAlus! Status tampil di bawah.`);
   };
 
