@@ -3,7 +3,7 @@ import './BenAlus.css';
 
 let socket = null;
 
-export default function StepProcess({ images, onImagesChange, outputNames, onComplete }) {
+export default function StepProcess({ images, onImagesChange, outputNames, onComplete, settings: externalSettings, onJobCompleted }) {
   // ─── Mode: 'connected' (pakai Step 2) atau 'standalone' (manual) ───
   const [mode, setMode] = useState('connected');
 
@@ -88,6 +88,10 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
       if (idx !== -1 && !(newImages[idx].videoUrl || '').includes(':3000')) {
         newImages[idx] = { ...newImages[idx], videoUrl: `${backendUrl}${job.resultUrl}` };
         changed = true;
+        if (onJobCompleted) {
+          const outName = (outputNames && outputNames[idx]) ? outputNames[idx] : `video_${idx}`;
+          onJobCompleted(job, newImages[idx], outName);
+        }
       }
     });
 
@@ -96,7 +100,7 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
       const connectedJobs = jobs.filter(j => j.status === 'completed' && j.imageId);
       if (connectedJobs.length >= readyImages.length && onComplete) onComplete();
     }
-  }, [jobs, images, onImagesChange, backendUrl, mode, readyImages.length, onComplete]);
+  }, [jobs, images, onImagesChange, backendUrl, mode, readyImages.length, onComplete, outputNames, onJobCompleted]);
 
   // ─── Settings change ───
   const handleSettingChange = (e) => {

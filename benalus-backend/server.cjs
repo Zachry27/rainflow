@@ -252,6 +252,56 @@ app.post('/api/process', upload.fields([{name:'video'},{name:'audio'}]), (req, r
 });
 
 app.get('/api/queue', (req, res) => res.json({ queued:queue.length, active:activeJobs, parallelLimit:settings.parallelLimit }));
+
+// Storage Management APIs
+app.get('/api/uploads', (req, res) => {
+  try {
+    const files = fs.readdirSync(UPLOADS_DIR).map(f => {
+      const stats = fs.statSync(path.join(UPLOADS_DIR, f));
+      return {
+        name: f,
+        size: stats.size,
+        createdAt: stats.birthtime,
+      };
+    }).sort((a, b) => b.createdAt - a.createdAt);
+    res.json({ files });
+  } catch (e) {
+    res.json({ files: [] });
+  }
+});
+
+app.delete('/api/file/:filename', (req, res) => {
+  try {
+    const filePath = path.join(UPLOADS_DIR, req.params.filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      res.json({ success: true, message: 'File deleted' });
+    } else {
+      res.status(404).json({ success: false, error: 'File not found' });
+    }
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.delete('/api/clear-uploads', (req, res) => {
+  try {
+    const files = fs.readdirSync(UPLOADS_DIR);
+    let deleted = 0;
+    for (const f of files) {
+      const filePath = path.join(UPLOADS_DIR, f);
+      // Delete all files in uploads dir, maybe except temp audio if they are locked, but try anyway
+      try {
+        fs.unlinkSync(filePath);
+        deleted++;
+      } catch (err) {}
+    }
+    res.json({ success: true, deleted, message: `Cleared ${deleted} files` });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 app.use('/downloads', express.static(UPLOADS_DIR));
 
 const PORT = 3000;

@@ -7,38 +7,49 @@ set "CLOUDFLARED_EXE=%PROJECT_DIR%\cloudflared.exe"
 
 echo.
 echo  =====================================================
-20: echo   Cloudflare Tunnel Setup (Vibe Coder Mode)
+echo   Cloudflare Tunnel Setup (Vibe Coder Mode)
 echo  =====================================================
 echo.
 
 if not exist "%CLOUDFLARED_EXE%" (
-    echo  [!] cloudflared.exe tidak ditemukan.
-    echo  [+] Mendownload cloudflared dari GitHub...
-    powershell -Command "Invoke-WebRequest -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile '%CLOUDFLARED_EXE%'"
-    if %ERRORLEVEL% equ 0 (
-        echo  [OK] Download selesai!
-    ) else (
-        echo  [ERROR] Gagal mendownload. Silakan cek koneksi internet.
-        pause
-        exit /b 1
-    )
-) else (
-    echo  [OK] cloudflared.exe sudah siap.
+    echo  [!] file cloudflared.exe BELUM ADA di folder ini.
+    echo.
+    echo  CARA INSTALL MANUAL:
+    echo  1. Buka link ini di browser: 
+    echo     https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe
+    echo  2. Setelah download, RENAME filenya jadi: cloudflared.exe
+    echo  3. PINDAHKAN file itu ke folder ini: 
+    echo     %PROJECT_DIR%
+    echo.
+    echo  Setelah kamu pindahkan filenya, jalankan lagi script ini.
+    echo.
+    pause
+    exit /b 1
 )
+
+echo  [OK] cloudflared.exe ditemukan! Lanjut...
 
 :: Cek Token di .env
 findstr /C:"CLOUDFLARE_TUNNEL_TOKEN" "%PROJECT_DIR%\.env" >nul
 if %ERRORLEVEL% neq 0 (
     echo.
     echo  [WARNING] Token belum ada di .env!
-    set /p "USER_TOKEN=Masukkan Cloudflare Tunnel Token kamu: "
+    echo  Silakan paste Token dari Cloudflare Dashboard kamu di bawah.
+    echo  (Cara ambil token ada di chat Antigravity sebelumnya)
+    echo.
+    set /p "USER_TOKEN=Paste Token Kamu: "
+    echo. >> "%PROJECT_DIR%\.env"
     echo CLOUDFLARE_TUNNEL_TOKEN=!USER_TOKEN! >> "%PROJECT_DIR%\.env"
-    echo  [OK] Token disimpan ke .env.
+    echo  [OK] Token berhasil disimpan ke .env.
+) else (
+    echo  [OK] Token sudah ada di .env.
 )
 
 echo.
-echo  Setup selesai! Sekarang kamu bisa pakai custom domain.
-echo  Pastikan di Cloudflare Dashboard kamu sudah mengarahkan Public Hostname 
-echo  (misal: app.domain.com) ke http://localhost:5173
+echo  =====================================================
+echo   SETUP SELESAI!
+echo  =====================================================
+echo  Sekarang kamu bisa jalankan MULAI.BAT
+echo  Domain kamu bakal otomatis aktif.
 echo.
 pause

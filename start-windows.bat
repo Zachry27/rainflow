@@ -74,6 +74,33 @@ start "RainFlow Frontend" cmd /c "cd /d "%INSTALL_DIR%" && npm run dev -- --host
 :: Tunggu frontend siap
 timeout /t 6 /nobreak >nul
 
+:: ── Start Cloudflare Tunnel (Custom Domain) ──
+set "TUNNEL_TOKEN="
+if not exist "%INSTALL_DIR%\.env" (
+    copy "%INSTALL_DIR%\.env.example" "%INSTALL_DIR%\.env" >nul
+)
+for /f "tokens=2 delims==" %%a in ('findstr "CLOUDFLARE_TUNNEL_TOKEN" "%INSTALL_DIR%\.env"') do set "TUNNEL_TOKEN=%%a"
+
+if "!TUNNEL_TOKEN!"=="" (
+    echo.
+    echo  [WARNING] Token Cloudflare belum disetting!
+    set /p "USER_TOKEN=Paste Token Cloudflare kamu di sini (opsional, tekan Enter untuk skip): "
+    if not "!USER_TOKEN!"=="" (
+        echo.>> "%INSTALL_DIR%\.env"
+        echo CLOUDFLARE_TUNNEL_TOKEN=!USER_TOKEN!>> "%INSTALL_DIR%\.env"
+        set "TUNNEL_TOKEN=!USER_TOKEN!"
+    )
+)
+
+if not "!TUNNEL_TOKEN!"=="" (
+    echo  [4/4] Menjalankan Cloudflare Tunnel (Custom Domain)...
+    if not exist "%INSTALL_DIR%\cloudflared.exe" (
+        echo      [INFO] Mendownload cloudflared...
+        curl.exe -L -o "%INSTALL_DIR%\cloudflared.exe" "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
+    )
+    start "Cloudflare Tunnel" cmd /k "cd /d "%INSTALL_DIR%" && cloudflared.exe tunnel run --token !TUNNEL_TOKEN!"
+)
+
 echo.
 echo  =====================================================
 echo   SEMUA LAYANAN AKTIF

@@ -1,17 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const NAV_ITEMS = [
-    { id: 'upload',   icon: '📁', label: 'Import',   shortLabel: 'Import' },
-    { id: 'generate', icon: '🤖', label: 'Generate', shortLabel: 'Generate' },
-    { id: 'process',  icon: '🔁', label: 'Process',  shortLabel: 'Process' },
-    { id: 'export',   icon: '📦', label: 'Export',   shortLabel: 'Export' },
-]
-
-const UTILITY_ITEMS = [
-    { id: 'settings', icon: '⚙️', label: 'Settings' },
-]
-
 export default function Sidebar({
     activeStep,
     onStepChange,
@@ -21,6 +10,8 @@ export default function Sidebar({
     isOpen,
     isCollapsed,
     onToggleCollapse,
+    onOpenSettings,
+    onOpenStorage,
 }) {
     const navigate = useNavigate()
 
@@ -48,34 +39,37 @@ export default function Sidebar({
                 </button>
             </div>
 
-            {/* Pipeline section */}
+            {/* Main Menu section */}
             <div className="sidebar__section">
                 {!isCollapsed && (
-                    <span className="sidebar__section-label">Pipeline</span>
+                    <span className="sidebar__section-label">Menu Utama</span>
                 )}
                 <nav className="sidebar__nav" id="sidebar-nav">
-                    {NAV_ITEMS.map((item, idx) => {
-                        const isActive = activeStep === item.id
-                        const isDone = completedSteps?.[item.id]
-                        return (
-                            <button
-                                key={item.id}
-                                className={`sidebar__nav-item ${isActive ? 'sidebar__nav-item--active' : ''} ${isDone && !isActive ? 'sidebar__nav-item--done' : ''}`}
-                                onClick={() => onStepChange(item.id)}
-                                id={`sidebar-step-${item.id}`}
-                                title={isCollapsed ? item.label : ''}
-                            >
-                                <span className="sidebar__nav-step-num">
-                                    {isDone && !isActive ? '✓' : idx + 1}
-                                </span>
-                                <span className="sidebar__nav-icon">{item.icon}</span>
-                                {!isCollapsed && (
-                                    <span className="sidebar__nav-label">{item.label}</span>
-                                )}
-                                {isActive && <span className="sidebar__nav-indicator" />}
-                            </button>
-                        )
-                    })}
+                    <button
+                        className={`sidebar__nav-item sidebar__nav-item--active`}
+                        onClick={() => onStepChange('upload')}
+                        title={isCollapsed ? 'Beranda' : ''}
+                    >
+                        <span className="sidebar__nav-icon">🏠</span>
+                        {!isCollapsed && <span className="sidebar__nav-label">Beranda</span>}
+                        <span className="sidebar__nav-indicator" />
+                    </button>
+                    <button
+                        className="sidebar__nav-item"
+                        onClick={onOpenStorage}
+                        title={isCollapsed ? 'Storage & History' : ''}
+                    >
+                        <span className="sidebar__nav-icon">🗄️</span>
+                        {!isCollapsed && <span className="sidebar__nav-label">Storage & History</span>}
+                    </button>
+                    <button
+                        className="sidebar__nav-item"
+                        onClick={onOpenSettings}
+                        title={isCollapsed ? 'Pengaturan' : ''}
+                    >
+                        <span className="sidebar__nav-icon">⚙️</span>
+                        {!isCollapsed && <span className="sidebar__nav-label">Pengaturan</span>}
+                    </button>
                 </nav>
             </div>
 

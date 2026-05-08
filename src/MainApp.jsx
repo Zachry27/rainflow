@@ -9,6 +9,7 @@ import StepUpload from './components/StepUpload'
 import StepGenerate from './components/StepGenerate'
 import StepProcess from './components/StepProcess'
 import StepExport from './components/StepExport'
+import StorageManager from './components/StorageManager'
 
 export default function MainApp() {
     const [activeStep, setActiveStep] = useState('upload')
@@ -18,6 +19,7 @@ export default function MainApp() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+    const [isStorageOpen, setIsStorageOpen] = useState(false)
     const [manualVideos, setManualVideos] = useState([])
     const [toastMessage, setToastMessage] = useState(null)
 
@@ -40,6 +42,7 @@ export default function MainApp() {
             videoDuration: 6,
             namePrefix: 'crs',
             startDate: '',
+            autoUploadAndDelete: true,
         }
         try {
             const saved = localStorage.getItem('rainflowMainSettings')
@@ -103,6 +106,49 @@ export default function MainApp() {
         email: driveUser?.email || '',
     }
 
+    const handleJobCompleted = useCallback(async (job, img, outputName) => {
+        if (!settings.autoUploadAndDelete || !driveToken) return;
+        
+        try {
+            // Upload to Google Drive
+            const uploadRes = await fetch('/v1/drive/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    video_url: job.resultUrl,
+                    filename: `${outputName}.mp4`,
+                    access_token: driveToken,
+                }),
+            });
+
+            if (!uploadRes.ok) throw new Error('Upload failed');
+            const uploadResult = await uploadRes.json();
+            
+            if (uploadResult.success) {
+                // Add to history
+                try {
+                    const history = JSON.parse(localStorage.getItem('rainflowUploadHistory') || '[]');
+                    history.unshift({
+                        name: `${outputName}.mp4`,
+                        date: new Date().toISOString(),
+                        url: uploadResult.drive_url
+                    });
+                    localStorage.setItem('rainflowUploadHistory', JSON.stringify(history));
+                } catch (e) {}
+
+                // Delete local file
+                const filename = job.resultUrl.split('/').pop();
+                if (filename) {
+                    await fetch(`/api/file/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+                }
+                showToast(`✅ ${outputName} auto-uploaded & deleted locally.`);
+            }
+        } catch (err) {
+            console.error('Auto upload error', err);
+            showToast(`Gagal auto-upload ${outputName}`, true);
+        }
+    }, [settings.autoUploadAndDelete, driveToken, showToast]);
+
     return (
         <div className={`app-layout ${isSidebarCollapsed ? 'app-layout--collapsed' : ''} ${isSidebarOpen ? 'app-layout--sidebar-open' : ''}`}>
 
@@ -130,6 +176,8 @@ export default function MainApp() {
                 isOpen={isSidebarOpen}
                 isCollapsed={isSidebarCollapsed}
                 onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                onOpenSettings={() => { setIsSettingsOpen(true); setIsSidebarOpen(false) }}
+                onOpenStorage={() => { setIsStorageOpen(true); setIsSidebarOpen(false) }}
             />
 
             {/* ── Mobile overlay backdrop ── */}
@@ -157,15 +205,27 @@ export default function MainApp() {
                 />
 
                 {/* Settings FAB button */}
-                <button
-                    className="settings-fab"
-                    onClick={() => setIsSettingsOpen(true)}
-                    id="settings-fab-btn"
-                    title="Buka Pengaturan"
-                >
-                    ⚙️
-                    <span className="settings-fab__label">Settings</span>
-                </button>
+                <div style={{ position: 'fixed', bottom: 80, right: 20, zIndex: 90, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <button
+                        className="settings-fab"
+                        style={{ position: 'relative', bottom: 0, right: 0 }}
+                        onClick={() => setIsStorageOpen(true)}
+                        title="Buka Storage"
+                    >
+                        🗄️
+                        <span className="settings-fab__label" style={{ fontSize: 10 }}>Storage</span>
+                    </button>
+                    <button
+                        className="settings-fab"
+                        style={{ position: 'relative', bottom: 0, right: 0 }}
+                        onClick={() => setIsSettingsOpen(true)}
+                        id="settings-fab-btn"
+                        title="Buka Pengaturan"
+                    >
+                        ⚙️
+                        <span className="settings-fab__label">Settings</span>
+                    </button>
+                </div>
 
                 {/* Step content — all mounted, show/hide via CSS */}
                 <div style={{ display: activeStep === 'upload' ? 'block' : 'none' }}>
@@ -201,6 +261,7 @@ export default function MainApp() {
                         manualVideos={manualVideos}
                         onManualVideosChange={setManualVideos}
                         driveAccessToken={driveToken}
+                        onJobCompleted={handleJobCompleted}
                     />
                 </div>
 
@@ -239,6 +300,12 @@ export default function MainApp() {
                 onSaveSettings={saveSettingsToDefault}
                 setDriveToken={setDriveToken}
                 setDriveUser={setDriveUser}
+            />
+
+            {/* ── Storage Manager Sheet ── */}
+            <StorageManager
+                isOpen={isStorageOpen}
+                onClose={() => setIsStorageOpen(false)}
             />
         </div>
     )

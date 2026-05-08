@@ -26,6 +26,7 @@ export default defineConfig({
     server: {
         port: 5173,
         host: true, // supaya bisa diakses via IP di RDP
+        allowedHosts: true, // izinkan akses dari custom domain/tunnel
         proxy: {
             // Proxy Auth & Admin ke Python backend (port 9564)
             '/v1/auth': {
@@ -40,9 +41,9 @@ export default defineConfig({
                 target: 'http://127.0.0.1:9564',
                 changeOrigin: true,
             },
-            // Proxy ke GrokPI backend (Step 1, 2, 4)
+            // Proxy ke Rainflow backend (Step 1, 2, 4)
             '/v1': {
-                target: 'http://127.0.0.1:9563',
+                target: 'http://127.0.0.1:9564',
                 changeOrigin: true,
             },
             // Proxy ke BenAlus Node.js backend (Step 3)
