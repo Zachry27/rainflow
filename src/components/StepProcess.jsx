@@ -1,24 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './BenAlus.css';
 
+import { Link, UploadCloud, Play, Settings as SettingsIcon, Music, CheckCircle, XCircle, Activity, Info, Sparkles, Server } from 'lucide-react';
+
 let socket = null;
 
-export default function StepProcess({ images, onImagesChange, outputNames, onComplete, settings: externalSettings, onJobCompleted }) {
+export default function StepProcess({ images, onImagesChange, outputNames, onComplete, settings, onJobCompleted }) {
   // ─── Mode: 'connected' (pakai Step 2) atau 'standalone' (manual) ───
   const [mode, setMode] = useState('connected');
 
-  const [settings, setSettings] = useState({
-    parallelLimit: 4,
-    loopMode: 'alpha_fade',
-    deflicker: false,
-    deshake: false,
-    enableAudio: false,
-    outputType: 'hours',
-    outputCount: 6,
-    outputDuration: 60,
-    outputHours: 3,
-    fadeDuration: 1.0
-  });
   const [toastMessage, setToastMessage] = useState(null);
 
   const showToast = (msg, isError = false) => {
@@ -40,14 +30,6 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
 
   // ─── Socket.IO + Settings load ───
   useEffect(() => {
-    // Cek status backend
-    fetch('/api/settings')
-      .then(res => res.json())
-      .then(data => {
-        setSettings(prev => ({ ...prev, ...data }));
-        setBackendStatus('online');
-      })
-      .catch(() => setBackendStatus('offline'));
 
     // Ambil daftar audio dari library
     fetch('/api/audio-list')
@@ -112,18 +94,7 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
     }
   }, [jobs, images, onImagesChange, backendUrl, mode, readyImages.length, onComplete, outputNames, onJobCompleted]);
 
-  // ─── Settings change ───
-  const handleSettingChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    const val = type === 'checkbox' ? checked : value;
-    const newSettings = { ...settings, [name]: val };
-    setSettings(newSettings);
-    fetch('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newSettings)
-    }).catch(console.error);
-  };
+
 
   // ─── Kirim satu video ke backend ───
   const sendVideo = async (videoSource, fileName, imageId = null) => {
@@ -139,16 +110,17 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
     if ((settings.enableAudio === true || settings.enableAudio === 'true') && audioName) {
       formData.append('audioName', audioName);
     }
-    Object.keys(settings).forEach(key => {
+    const settingsToSend = { ...settings, deflicker: settings.enableDeflicker, deshake: settings.enableStabilization };
+    Object.keys(settingsToSend).forEach(key => {
       // Convert hours to duration before sending to backend if outputType is hours
-      if (key === 'outputType' && settings.outputType === 'hours') {
+      if (key === 'outputType' && settingsToSend.outputType === 'hours') {
           formData.append(key, 'duration');
       } else if (key === 'outputHours') {
           // don't send outputHours directly
-      } else if (key === 'outputDuration' && settings.outputType === 'hours') {
-          formData.append(key, settings.outputHours * 3600);
+      } else if (key === 'outputDuration' && settingsToSend.outputType === 'hours') {
+          formData.append(key, settingsToSend.outputHours * 3600);
       } else {
-          formData.append(key, settings[key])
+          formData.append(key, settingsToSend[key])
       }
     });
     if (imageId) formData.append('imageId', imageId);
@@ -218,12 +190,12 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
       )}
 
       {/* ── Backend Status Bar ── */}
-      <div className="status-bar">
+      <div className="status-bar" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span className={`status-dot ${backendStatus}`} />
-        <span>
-          Backend BenAlus:{' '}
-          {backendStatus === 'online' ? <strong style={{ color: '#4ade80' }}>Online ✅</strong>
-            : backendStatus === 'offline' ? <strong style={{ color: '#f87171' }}>Offline ❌ — Jalankan server.cjs dulu!</strong>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Server size={16} /> Backend BenAlus:
+          {backendStatus === 'online' ? <strong style={{ color: '#4ade80' }}>Online</strong>
+            : backendStatus === 'offline' ? <strong style={{ color: '#f87171' }}>Offline — Jalankan server.cjs!</strong>
             : <strong style={{ color: '#fbbf24' }}>Memeriksa...</strong>}
         </span>
         <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#94a3b8' }}>{window.location.origin} (proxy)</span>
@@ -234,15 +206,17 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
         <button
           className={`mode-toggle-btn ${mode === 'connected' ? 'active' : ''}`}
           onClick={() => setMode('connected')}
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
         >
-          🔗 Mode Terkoneksi
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Link size={18} /> Mode Terkoneksi</div>
           <span className="mode-desc">Otomatis dari Step 2 → Step 4</span>
         </button>
         <button
           className={`mode-toggle-btn ${mode === 'standalone' ? 'active' : ''}`}
           onClick={() => setMode('standalone')}
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
         >
-          📦 Mode Standalone
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><UploadCloud size={18} /> Mode Standalone</div>
           <span className="mode-desc">Upload video manual, bebas</span>
         </button>
       </div>
@@ -250,13 +224,13 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
       {/* ── INPUT PANEL ── */}
       {mode === 'connected' ? (
         <div className="glass-panel">
-          <h2>🔗 Video dari Step 2 (Auto-Pull)</h2>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Link size={20} style={{ color: 'var(--accent)' }} /> Video dari Step 2 (Auto-Pull)</h2>
           <p style={{ color: '#94a3b8', marginBottom: '15px', fontSize: '0.9rem' }}>
             Video yang selesai di-generate di Step 2 otomatis masuk ke sini. Hasil proses akan otomatis diteruskan ke Step 4.
           </p>
           {readyImages.length === 0 ? (
             <div style={{ padding: '20px', background: 'rgba(0,0,0,0.3)', borderRadius: '10px', textAlign: 'center', color: '#94a3b8' }}>
-              <div style={{ fontSize: '2rem', marginBottom: '10px' }}>📭</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--text-dim)' }}><Info size={32} /></div>
               <p>Belum ada video siap dari Step 2.</p>
               <p style={{ fontSize: '0.8rem' }}>Selesaikan Step 2 (Generate) terlebih dahulu.</p>
             </div>
@@ -271,9 +245,9 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
                     padding: '8px 12px',
                     background: isDone ? 'rgba(34, 197, 94, 0.15)' : 'rgba(99, 102, 241, 0.2)',
                     border: `1px solid ${isDone ? 'rgba(34, 197, 94, 0.5)' : 'rgba(99, 102, 241, 0.5)'}`,
-                    borderRadius: '8px', fontSize: '0.85rem'
+                    borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6
                   }}>
-                    {isDone ? '✅' : '🎬'} {outName}_raw.mp4
+                    {isDone ? <CheckCircle size={14} style={{ color: 'var(--success)' }} /> : <Play size={14} style={{ color: 'var(--accent)' }} />} {outName}_raw.mp4
                   </div>
                 );
               })}
@@ -282,7 +256,7 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
         </div>
       ) : (
         <div className="glass-panel">
-          <h2>📦 Upload Video Manual</h2>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><UploadCloud size={20} style={{ color: 'var(--accent)' }} /> Upload Video Manual</h2>
           <p style={{ color: '#94a3b8', marginBottom: '15px', fontSize: '0.9rem' }}>
             Upload video apa saja dari komputer Anda. Hasil hanya bisa didownload, tidak terhubung ke Step 4.
           </p>
@@ -348,87 +322,36 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
         )}
       </div>
 
-      {/* ── Config Grid ── */}
-      <div className="grid-2">
-        <div className="glass-panel">
-          <h2>⚙️ Konfigurasi Looping</h2>
-          <div style={{ marginTop: '20px' }}>
-            <div className="form-group">
-              <label>Loop Mode</label>
-              <select name="loopMode" value={settings.loopMode} onChange={handleSettingChange}>
-                <option value="alpha_fade">Alpha Fade Overlay (Smooth)</option>
-                <option value="split_trim">Split-Trim (Advanced)</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Parallel Limit (Server RDP)</label>
-              <input type="number" name="parallelLimit" value={settings.parallelLimit} onChange={handleSettingChange} min="1" max="20" />
-            </div>
-            <div className="form-group">
-              <label>Fade Duration (detik)</label>
-              <input type="number" name="fadeDuration" value={settings.fadeDuration} onChange={handleSettingChange} min="0.5" max="5" step="0.1" />
-            </div>
-            <label>Preprocessing</label>
-            <div className="checkbox-group">
-              <input type="checkbox" id="deshake" name="deshake" checked={settings.deshake} onChange={handleSettingChange} />
-              <label htmlFor="deshake" style={{ marginBottom: 0 }}>Stabilisasi (Deshake)</label>
-            </div>
-            <div className="checkbox-group">
-              <input type="checkbox" id="deflicker" name="deflicker" checked={settings.deflicker} onChange={handleSettingChange} />
-              <label htmlFor="deflicker" style={{ marginBottom: 0 }}>Deflicker</label>
-            </div>
+      {/* ── Start Process Panel ── */}
+      <div className="glass-panel" style={{ marginTop: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+              <div>
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Activity size={18} style={{ color: 'var(--accent)' }} /> Siap Memproses Video
+                  </h3>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <span>⚙️ Mode: <strong style={{ color: '#fff' }}>{settings.loopMode}</strong></span>
+                      <span>⚡ Pekerja: <strong style={{ color: '#fff' }}>{settings.parallelLimit}</strong></span>
+                      <span>⏱️ Durasi: <strong style={{ color: '#fff' }}>{settings.outputType === 'hours' ? `${settings.outputHours} Jam` : settings.outputType === 'count' ? `${settings.outputCount} Loop` : `${settings.outputDuration}s`}</strong></span>
+                      <span style={{ fontStyle: 'italic', opacity: 0.7 }}>(Ubah di Pengaturan)</span>
+                  </div>
+              </div>
+              <button
+                className="btn-primary"
+                onClick={mode === 'connected' ? handleStartConnected : handleStartStandalone}
+                disabled={!canStart}
+                style={{ opacity: canStart ? 1 : 0.5, margin: 0, padding: '12px 24px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                {isProcessing ? <><span className="spinner" /> MENGIRIM...</> : <><Sparkles size={18} /> MULAI PROSES PARALEL</>}
+              </button>
           </div>
-        </div>
-
-        <div className="glass-panel">
-          <h2>📊 Output Target</h2>
-          <div style={{ marginTop: '20px' }}>
-            <div className="form-group">
-              <label>Mode Target</label>
-              <select name="outputType" value={settings.outputType} onChange={handleSettingChange}>
-                <option value="hours">Berdasarkan Jam (Premium)</option>
-                <option value="count">Berdasarkan Jumlah Loop</option>
-                <option value="duration">Berdasarkan Durasi (Detik)</option>
-              </select>
-            </div>
-            {settings.outputType === 'hours' ? (
-              <div className="form-group">
-                <label>Target Durasi (Jam)</label>
-                <input type="number" name="outputHours" value={settings.outputHours} onChange={handleSettingChange} min="1" />
-              </div>
-            ) : settings.outputType === 'count' ? (
-              <div className="form-group">
-                <label>Jumlah Loop</label>
-                <input type="number" name="outputCount" value={settings.outputCount} onChange={handleSettingChange} min="1" />
-              </div>
-            ) : (
-              <div className="form-group">
-                <label>Durasi Total (Detik)</label>
-                <input type="number" name="outputDuration" value={settings.outputDuration} onChange={handleSettingChange} min="5" />
-              </div>
-            )}
-            <button
-              className="btn-primary"
-              onClick={mode === 'connected' ? handleStartConnected : handleStartStandalone}
-              disabled={!canStart}
-              style={{ marginTop: '15px', opacity: canStart ? 1 : 0.5 }}
-            >
-              {isProcessing ? '⏳ MENGIRIM...' : '🚀 MULAI PROSES PARALEL'}
-            </button>
-            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '8px', textAlign: 'center' }}>
-              {mode === 'connected'
-                ? 'Hasil akan otomatis masuk ke Step 4.'
-                : 'Hasil bisa didownload langsung dari panel status.'}
-            </p>
-          </div>
-        </div>
       </div>
 
       {/* ── Job Status Panel ── */}
       {jobs.length > 0 && (
         <div className="glass-panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 style={{ margin: 0 }}>📈 Status Pemrosesan</h2>
+            <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><Activity size={20} style={{ color: 'var(--success)' }} /> Status Pemrosesan</h2>
             <button
               onClick={() => setJobs([])}
               style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#94a3b8', cursor: 'pointer', padding: '4px 10px', fontSize: '0.8rem' }}
@@ -449,15 +372,15 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
                     )}
                   </div>
                   <span className={`badge ${job.status}`}>
-                    {job.status === 'processing' ? '⚙️ Processing'
-                      : job.status === 'completed' ? '✅ Selesai'
-                      : '❌ Error'}
+                    {job.status === 'processing' ? <><SettingsIcon size={12} className="spin-icon" /> Processing</>
+                      : job.status === 'completed' ? <><CheckCircle size={12} /> Selesai</>
+                      : <><XCircle size={12} /> Error</>}
                   </span>
                 </div>
                 {job.log && <div className="log-view">&gt; {job.log}</div>}
                 {job.resultUrl && (
-                  <a href={job.resultUrl} className="download-btn" target="_blank" rel="noreferrer">
-                    ⬇️ Download Hasil
+                  <a href={job.resultUrl} className="download-btn" target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <UploadCloud size={14} style={{ transform: 'rotate(180deg)' }} /> Download Hasil
                   </a>
                 )}
               </div>

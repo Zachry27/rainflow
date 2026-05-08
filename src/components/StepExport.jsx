@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react'
+import { Package, FolderOpen, Calendar, CheckSquare, Cloud, Check, Clock, AlertCircle, Sparkles, X, CheckCircle, UploadCloud } from 'lucide-react'
 
 export default function StepExport({ images, settings, outputNames, driveToken, apiUrl, apiKey }) {
     const [uploadStatus, setUploadStatus] = useState({}) // { imgId: 'uploading' | 'done' | 'error' | url }
@@ -81,8 +82,8 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
         <div>
             {/* Summary Stats */}
             <div className="card">
-                <h3 className="card__title">
-                    <span className="card__title-icon">📦</span>
+                <h3 className="card__title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Package size={20} className="card__title-icon" style={{ color: 'var(--warning)' }} />
                     Step 4 — Export & Ringkasan
                 </h3>
                 <div className="stats-row">
@@ -110,8 +111,8 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
             {/* Google Drive Upload */}
             {doneVideos.length > 0 && (
                 <div className="card">
-                    <h3 className="card__title">
-                        <span className="card__title-icon">📂</span>
+                    <h3 className="card__title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <FolderOpen size={20} className="card__title-icon" style={{ color: 'var(--accent)' }} />
                         Upload ke Google Drive
                     </h3>
 
@@ -125,8 +126,9 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                                     className="btn btn--primary btn--full"
                                     onClick={uploadAllToDrive}
                                     id="btn-upload-all-drive"
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                                 >
-                                    📂 Upload Semua ke Drive ({doneVideos.length} video)
+                                    <UploadCloud size={18} /> Upload Semua ke Drive ({doneVideos.length} video)
                                 </button>
                             </div>
 
@@ -144,14 +146,14 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                                             <img className="status-item__thumb" src={img.preview} alt={name} />
                                             <div className="status-item__info">
                                                 <p className="status-item__name">{name}.mp4</p>
-                                                <p className="status-item__detail">
-                                                    {isError && `❌ ${String(st).replace('error:', '')}`}
-                                                    {isUploading && '⏳ Mengupload...'}
+                                                <p className="status-item__detail" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                    {isError && <><X size={12} style={{ color: 'var(--error)' }} /> {String(st).replace('error:', '')}</>}
+                                                    {isUploading && <><Clock size={12} /> Mengupload...</>}
                                                     {isDone && typeof st === 'string' && st.startsWith('http') ? (
-                                                        <a href={st} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>
-                                                            ✅ Lihat di Drive
+                                                        <a href={st} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                            <CheckCircle size={12} /> Lihat di Drive
                                                         </a>
-                                                    ) : isDone && '✅ Upload berhasil'}
+                                                    ) : isDone && <><CheckCircle size={12} /> Upload berhasil</>}
                                                     {!st && `Siap upload`}
                                                 </p>
                                             </div>
@@ -161,7 +163,7 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                                                     onClick={() => uploadToDrive(img, name)}
                                                     disabled={isUploading}
                                                 >
-                                                    {isUploading ? <><span className="spinner" style={{ marginRight: 4 }} />...</> : '📤'}
+                                                    {isUploading ? <><span className="spinner" style={{ marginRight: 4 }} />...</> : <UploadCloud size={16} />}
                                                 </button>
                                             )}
                                         </div>
@@ -171,7 +173,7 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                         </>
                     ) : (
                         <div className="tip-box">
-                            <span className="tip-box__icon">💡</span>
+                            <Sparkles size={18} className="tip-box__icon" />
                             <span className="tip-box__text">
                                 Hubungkan Google Drive di bagian atas halaman untuk mengaktifkan upload otomatis.
                             </span>
@@ -182,8 +184,8 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
 
             {/* Upload Schedule */}
             <div className="card">
-                <h3 className="card__title">
-                    <span className="card__title-icon">📅</span>
+                <h3 className="card__title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Calendar size={20} className="card__title-icon" style={{ color: '#ec4899' }} />
                     Jadwal Upload YouTube
                 </h3>
                 <p className="card__desc">
@@ -217,8 +219,8 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                                         })}
                                     </td>
                                     <td>
-                                        <span className={`status-item__badge status-item__badge--${driveUploaded ? 'ready' : isDone ? 'done' : img.status}`}>
-                                            {driveUploaded ? '☁️ Drive' : isDone ? '✓ Ready' : img.status}
+                                        <span className={`status-item__badge status-item__badge--${driveUploaded ? 'ready' : isDone ? 'done' : img.status}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                            {driveUploaded ? <><Cloud size={12} /> Drive</> : isDone ? <><Check size={12} /> Ready</> : img.status}
                                         </span>
                                     </td>
                                 </tr>
@@ -230,8 +232,8 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
 
             {/* Checklist */}
             <div className="card">
-                <h3 className="card__title">
-                    <span className="card__title-icon">✅</span>
+                <h3 className="card__title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <CheckSquare size={20} className="card__title-icon" style={{ color: 'var(--success)' }} />
                     Checklist Kesiapan Upload
                 </h3>
                 <div className="status-list">
@@ -247,7 +249,7 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                 </div>
 
                 <div className="tip-box tip-box--success" style={{ marginTop: 20 }}>
-                    <span className="tip-box__icon">🎉</span>
+                    <Sparkles size={18} className="tip-box__icon" />
                     <span className="tip-box__text">
                         <strong>Workflow selesai!</strong> Semua step bisa diulang kapan saja tanpa urutan paksa.
                     </span>
@@ -268,7 +270,7 @@ function ChecklistItem({ done, label, detail }) {
                 color: done ? 'var(--success)' : 'var(--text-muted)',
                 border: `1px solid ${done ? 'rgba(16,185,129,0.3)' : 'var(--border)'}`
             }}>
-                {done ? '✓' : '○'}
+                {done ? <Check size={16} /> : <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-muted)' }} />}
             </span>
             <div className="status-item__info">
                 <p className="status-item__name" style={{ textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.7 : 1 }}>

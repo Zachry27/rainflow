@@ -37,7 +37,7 @@ export default function MainApp() {
             loopDuration: 10800,
             crf: 23,
             audioFile: 'rain_audio.mp3',
-            processMode: 'standard',
+            processMode: 'benalus',
             enableDeflicker: true,
             enableStabilization: false,
             fadeDuration: 0.8,
@@ -45,6 +45,12 @@ export default function MainApp() {
             namePrefix: 'crs',
             startDate: '',
             autoUploadAndDelete: true,
+            parallelLimit: 4,
+            loopMode: 'alpha_fade',
+            outputType: 'hours',
+            outputCount: 6,
+            outputHours: 3,
+            enableAudio: false,
         }
         try {
             const saved = localStorage.getItem('rainflowMainSettings')

@@ -244,33 +244,11 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
                     />
                 </div>
 
-                <div className="gen-config">
-                    <div className="settings-field">
-                        <label className="settings-field__label">Aspect Ratio</label>
-                        <select className="settings-field__select" value={settings.aspectRatio}
-                            onChange={e => onUpdateSettings('aspectRatio', e.target.value)}>
-                            <option value="16:9">16:9 Landscape</option>
-                            <option value="9:16">9:16 Shorts</option>
-                            <option value="1:1">1:1 Square</option>
-                        </select>
-                    </div>
-                    <div className="settings-field">
-                        <label className="settings-field__label">Durasi</label>
-                        <select className="settings-field__select" value={settings.duration}
-                            onChange={e => onUpdateSettings('duration', Number(e.target.value))}>
-                            <option value={6}>6 detik</option>
-                            <option value={10}>10 detik</option>
-                        </select>
-                    </div>
-                    <div className="settings-field">
-                        <label className="settings-field__label">⚡ Workers</label>
-                        <select className="settings-field__select" value={settings.workers}
-                            onChange={e => onUpdateSettings('workers', Number(e.target.value))}>
-                            {[1, 2, 3, 4, 5, 6].map(n => (
-                                <option key={n} value={n}>{n} {n === 1 ? '(sequential)' : 'parallel'}</option>
-                            ))}
-                        </select>
-                    </div>
+                <div className="gen-config" style={{ display: 'flex', gap: 12, fontSize: '0.85rem', color: 'var(--text-dim)', padding: '12px', background: 'var(--bg-lighter)', borderRadius: 8, marginTop: 12 }}>
+                    <span>📐 {settings.aspectRatio || '16:9'}</span>
+                    <span>⏱️ {settings.duration || 6}s</span>
+                    <span>⚡ {settings.workers || 3} Workers</span>
+                    <span style={{ marginLeft: 'auto', fontStyle: 'italic', opacity: 0.7 }}>(Ubah di Pengaturan)</span>
                 </div>
             </div>
 

@@ -31,8 +31,7 @@ export default function SettingsSheet({ isOpen, onClose, settings, onUpdateSetti
                         { id: 'api',    label: <><Plug size={16} /> API</> },
                         { id: 'drive',  label: <><HardDrive size={16} /> Drive</> },
                         { id: 'video',  label: <><Video size={16} /> Video</> },
-                        { id: 'ffmpeg', label: <><RefreshCw size={16} /> FFmpeg</> },
-                        { id: 'naming', label: <><Type size={16} /> Naming</> },
+                        { id: 'ffmpeg', label: <><RefreshCw size={16} /> Looping</> },
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -181,132 +180,87 @@ export default function SettingsSheet({ isOpen, onClose, settings, onUpdateSetti
                     {activeTab === 'ffmpeg' && (
                         <div className="sheet__section">
                             <div className="settings-field">
-                                <label className="settings-field__label">Loop Duration (detik)</label>
+                                <label className="settings-field__label">🔄 Loop Mode</label>
                                 <select
                                     className="settings-field__select"
-                                    value={settings.loopDuration}
-                                    onChange={e => onUpdateSettings('loopDuration', Number(e.target.value))}
-                                    id="select-loop-duration"
+                                    value={settings.loopMode}
+                                    onChange={e => onUpdateSettings('loopMode', e.target.value)}
+                                    id="select-loop-mode"
                                 >
-                                    <option value={3600}>1 Jam (3600s)</option>
-                                    <option value={7200}>2 Jam (7200s)</option>
-                                    <option value={10800}>3 Jam (10800s)</option>
-                                    <option value={14400}>4 Jam (14400s)</option>
-                                    <option value={18000}>5 Jam (18000s)</option>
-                                    <option value={36000}>10 Jam (36000s)</option>
-                                </select>
-                                <span className="settings-field__help">Durasi total video YouTube setelah di-loop</span>
-                            </div>
-                            <div className="settings-field">
-                                <label className="settings-field__label">CRF Quality</label>
-                                <select
-                                    className="settings-field__select"
-                                    value={settings.crf}
-                                    onChange={e => onUpdateSettings('crf', Number(e.target.value))}
-                                    id="select-crf"
-                                >
-                                    <option value={18}>18 — Ultra High (file besar)</option>
-                                    <option value={23}>23 — High (recommended)</option>
-                                    <option value={28}>28 — Medium</option>
-                                    <option value={33}>33 — Low (file kecil)</option>
+                                    <option value="alpha_fade">Alpha Fade Overlay (Smooth)</option>
+                                    <option value="split_trim">Split-Trim (Advanced)</option>
                                 </select>
                             </div>
                             <div className="settings-field">
-                                <label className="settings-field__label">Audio File Path</label>
+                                <label className="settings-field__label">Parallel Limit (Server RDP)</label>
                                 <input
                                     className="settings-field__input"
-                                    type="text"
-                                    value={settings.audioFile}
-                                    onChange={e => onUpdateSettings('audioFile', e.target.value)}
-                                    placeholder="rain_audio.mp3"
-                                    id="input-audio-file"
+                                    type="number"
+                                    value={settings.parallelLimit}
+                                    onChange={e => onUpdateSettings('parallelLimit', Number(e.target.value))}
+                                    min="1" max="20"
+                                    id="input-parallel-limit"
                                 />
-                                <span className="settings-field__help">Path file audio yang akan digabung</span>
                             </div>
                             <div className="settings-field">
-                                <label className="settings-field__label">🔄 Process Mode</label>
+                                <label className="settings-field__label">Fade Duration (detik)</label>
+                                <input
+                                    className="settings-field__input"
+                                    type="number"
+                                    value={settings.fadeDuration}
+                                    onChange={e => onUpdateSettings('fadeDuration', Number(e.target.value))}
+                                    min="0.5" max="5" step="0.1"
+                                    id="input-fade-duration"
+                                />
+                            </div>
+                            <div className="settings-field">
+                                <label className="settings-field__label">Preprocessing</label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                    <label className="sheet__checkbox-label">
+                                        <input type="checkbox" checked={settings.enableStabilization}
+                                            onChange={e => onUpdateSettings('enableStabilization', e.target.checked)} />
+                                        🔧 Stabilisasi (Deshake)
+                                    </label>
+                                    <label className="sheet__checkbox-label">
+                                        <input type="checkbox" checked={settings.enableDeflicker}
+                                            onChange={e => onUpdateSettings('enableDeflicker', e.target.checked)} />
+                                        💡 Deflicker
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="settings-field">
+                                <label className="settings-field__label">Mode Target Durasi</label>
                                 <select
                                     className="settings-field__select"
-                                    value={settings.processMode}
-                                    onChange={e => onUpdateSettings('processMode', e.target.value)}
-                                    id="select-process-mode"
+                                    value={settings.outputType}
+                                    onChange={e => onUpdateSettings('outputType', e.target.value)}
+                                    id="select-output-type"
                                 >
-                                    <option value="standard">🔁 Standard — 2-step (keyint loop)</option>
-                                    <option value="benalus">🔄 BenAlus — 4-step (deflicker + fade seamless)</option>
+                                    <option value="hours">Berdasarkan Jam (Premium)</option>
+                                    <option value="count">Berdasarkan Jumlah Loop</option>
+                                    <option value="duration">Berdasarkan Durasi (Detik)</option>
                                 </select>
-                                <span className="settings-field__help">BenAlus mode menghasilkan transisi loop lebih mulus</span>
                             </div>
-                            {settings.processMode === 'benalus' && (
-                                <>
-                                    <div className="settings-field">
-                                        <label className="settings-field__label">Durasi Video Asli (detik)</label>
-                                        <input
-                                            className="settings-field__input"
-                                            type="number"
-                                            value={settings.videoDuration}
-                                            min={1} step={1}
-                                            onChange={e => onUpdateSettings('videoDuration', Number(e.target.value))}
-                                            id="input-video-duration"
-                                        />
-                                    </div>
-                                    <div className="settings-field">
-                                        <label className="settings-field__label">Fade Duration (detik)</label>
-                                        <input
-                                            className="settings-field__input"
-                                            type="number"
-                                            value={settings.fadeDuration}
-                                            min={0.1} max={3} step={0.1}
-                                            onChange={e => onUpdateSettings('fadeDuration', Number(e.target.value))}
-                                            id="input-fade-duration"
-                                        />
-                                    </div>
-                                    <div className="settings-field">
-                                        <label className="settings-field__label">Preprocessing</label>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                            <label className="sheet__checkbox-label">
-                                                <input type="checkbox" checked={settings.enableDeflicker}
-                                                    onChange={e => onUpdateSettings('enableDeflicker', e.target.checked)} />
-                                                💡 Deflicker
-                                            </label>
-                                            <label className="sheet__checkbox-label">
-                                                <input type="checkbox" checked={settings.enableStabilization}
-                                                    onChange={e => onUpdateSettings('enableStabilization', e.target.checked)} />
-                                                🔧 Stabilization
-                                            </label>
-                                        </div>
-                                    </div>
-                                </>
+                            {settings.outputType === 'hours' ? (
+                                <div className="settings-field">
+                                    <label className="settings-field__label">Target Durasi (Jam)</label>
+                                    <input className="settings-field__input" type="number" value={settings.outputHours} onChange={e => onUpdateSettings('outputHours', Number(e.target.value))} min="1" />
+                                </div>
+                            ) : settings.outputType === 'count' ? (
+                                <div className="settings-field">
+                                    <label className="settings-field__label">Jumlah Loop</label>
+                                    <input className="settings-field__input" type="number" value={settings.outputCount} onChange={e => onUpdateSettings('outputCount', Number(e.target.value))} min="1" />
+                                </div>
+                            ) : (
+                                <div className="settings-field">
+                                    <label className="settings-field__label">Durasi Total (Detik)</label>
+                                    <input className="settings-field__input" type="number" value={settings.outputDuration} onChange={e => onUpdateSettings('outputDuration', Number(e.target.value))} min="5" />
+                                </div>
                             )}
                         </div>
                     )}
 
-                    {activeTab === 'naming' && (
-                        <div className="sheet__section">
-                            <div className="settings-field">
-                                <label className="settings-field__label">Name Prefix</label>
-                                <input
-                                    className="settings-field__input"
-                                    type="text"
-                                    value={settings.namePrefix}
-                                    onChange={e => onUpdateSettings('namePrefix', e.target.value)}
-                                    placeholder="crs"
-                                    id="input-name-prefix"
-                                />
-                                <span className="settings-field__help">Prefix nama file output (misal: crs → crs0106)</span>
-                            </div>
-                            <div className="settings-field">
-                                <label className="settings-field__label">Start Date</label>
-                                <input
-                                    className="settings-field__input"
-                                    type="date"
-                                    value={settings.startDate}
-                                    onChange={e => onUpdateSettings('startDate', e.target.value)}
-                                    id="input-start-date"
-                                />
-                                <span className="settings-field__help">Tanggal awal penamaan. Kosongkan = besok</span>
-                            </div>
-                        </div>
-                    )}
+
                 </div>
 
                 <div className="sheet__footer">
