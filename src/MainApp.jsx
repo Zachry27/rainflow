@@ -270,6 +270,7 @@ export default function MainApp() {
                         onUpdateSettings={updateSettings}
                         outputNames={getOutputNames()}
                         driveAccessToken={driveToken}
+                        isActive={activeStep === 'upload'}
                     />
                 </div>
 
@@ -281,6 +282,7 @@ export default function MainApp() {
                         onUpdateSettings={updateSettings}
                         outputNames={getOutputNames()}
                         onComplete={() => markStepDone('generate')}
+                        isActive={activeStep === 'generate'}
                     />
                 </div>
 
@@ -296,6 +298,7 @@ export default function MainApp() {
                         onManualVideosChange={setManualVideos}
                         driveAccessToken={driveToken}
                         onJobCompleted={handleJobCompleted}
+                        isActive={activeStep === 'process'}
                     />
                 </div>
 
@@ -307,6 +310,7 @@ export default function MainApp() {
                         driveToken={driveToken}
                         apiUrl={settings.apiUrl}
                         apiKey={settings.apiKey}
+                        isActive={activeStep === 'export'}
                     />
                 </div>
 

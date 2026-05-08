@@ -30,7 +30,7 @@ async function runPool(tasks, concurrency, onProgress) {
     })
 }
 
-export default function StepGenerate({ images, onImagesChange, settings, onUpdateSettings, outputNames, onComplete }) {
+export default function StepGenerate({ images, onImagesChange, settings, onUpdateSettings, outputNames, onComplete, isActive = true }) {
     const [generating, setGenerating] = useState(false)
     const [apiStatus, setApiStatus] = useState('checking') // 'checking', 'connected', 'error'
     const abortRef = useRef(false)
@@ -318,28 +318,30 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
                 </div>
 
                 {/* Status List */}
-                <div className="status-list" id="generation-status-list">
-                    {images.map((img, index) => (
-                        <div className={`status-item status-item--${img.status}`} key={img.id}>
-                            <img className="status-item__thumb" src={img.preview} alt={img.name} />
-                            <div className="status-item__info">
-                                <p className="status-item__name">{outputNames[index] || img.name}</p>
-                                <p className="status-item__detail" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    {img.status === 'generating' && <><Clock size={12} /> Sedang generate video AI...</>}
-                                    {img.status === 'done' && <><CheckCircle size={12} style={{ color: 'var(--success)' }} /> Video berhasil di-generate</>}
-                                    {img.status === 'error' && <><XCircle size={12} style={{ color: 'var(--error)' }} /> {img.error || 'Error'}</>}
-                                    {img.status === 'pending' && <><Clock size={12} /> Menunggu worker tersedia...</>}
-                                </p>
+                {isActive && (
+                    <div className="status-list" id="generation-status-list">
+                        {images.map((img, index) => (
+                            <div className={`status-item status-item--${img.status}`} key={img.id}>
+                                <img className="status-item__thumb" src={img.preview} alt={img.name} />
+                                <div className="status-item__info">
+                                    <p className="status-item__name">{outputNames[index] || img.name}</p>
+                                    <p className="status-item__detail" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        {img.status === 'generating' && <><Clock size={12} /> Sedang generate video AI...</>}
+                                        {img.status === 'done' && <><CheckCircle size={12} style={{ color: 'var(--success)' }} /> Video berhasil di-generate</>}
+                                        {img.status === 'error' && <><XCircle size={12} style={{ color: 'var(--error)' }} /> {img.error || 'Error'}</>}
+                                        {img.status === 'pending' && <><Clock size={12} /> Menunggu worker tersedia...</>}
+                                    </p>
+                                </div>
+                                <span className={`status-item__badge status-item__badge--${img.status}`}>
+                                    {img.status === 'generating' && <><span className="spinner" style={{ marginRight: 4 }} />Gen...</>}
+                                    {img.status === 'done' && '✓ Done'}
+                                    {img.status === 'error' && '✕ Error'}
+                                    {img.status === 'pending' && 'Wait'}
+                                </span>
                             </div>
-                            <span className={`status-item__badge status-item__badge--${img.status}`}>
-                                {img.status === 'generating' && <><span className="spinner" style={{ marginRight: 4 }} />Gen...</>}
-                                {img.status === 'done' && '✓ Done'}
-                                {img.status === 'error' && '✕ Error'}
-                                {img.status === 'pending' && 'Wait'}
-                            </span>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     )

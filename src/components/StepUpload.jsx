@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react'
 import PrefixPresets from './PrefixPresets'
 
-export default function StepUpload({ images, onImagesChange, settings, onUpdateSettings, outputNames, driveAccessToken }) {
+export default function StepUpload({ images, onImagesChange, settings, onUpdateSettings, outputNames, driveAccessToken, isActive = true }) {
     const [dragging, setDragging] = useState(false)
     const [gdriveLoading, setGdriveLoading] = useState(false)
     const fileInputRef = useRef(null)
@@ -197,7 +197,7 @@ export default function StepUpload({ images, onImagesChange, settings, onUpdateS
                 </div>
 
                 {/* Image Grid */}
-                {images.length > 0 && (
+                {images.length > 0 && isActive && (
                     <>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '20px 0 12px' }}>
                             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>

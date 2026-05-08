@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react'
 import { Package, FolderOpen, Calendar, CheckSquare, Cloud, Check, Clock, AlertCircle, Sparkles, X, CheckCircle, UploadCloud } from 'lucide-react'
 
-export default function StepExport({ images, settings, outputNames, driveToken, apiUrl, apiKey }) {
+export default function StepExport({ images, settings, outputNames, driveToken, apiUrl, apiKey, isActive = true }) {
     const [uploadStatus, setUploadStatus] = useState({}) // { imgId: 'uploading' | 'done' | 'error' | url }
 
     const doneVideos = images.filter(img => img.status === 'done')
@@ -132,18 +132,19 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                                 </button>
                             </div>
 
-                            <div className="status-list">
-                                {doneVideos.map((img, i) => {
-                                    const idx = images.findIndex(m => m.id === img.id)
-                                    const name = outputNames[idx] || `video_${i}`
-                                    const st = uploadStatus[img.id]
-                                    const isUploading = st === 'uploading'
-                                    const isDone = st && st !== 'uploading' && !String(st).startsWith('error')
-                                    const isError = String(st || '').startsWith('error')
+                            {isActive && (
+                                <div className="status-list">
+                                    {doneVideos.map((img, i) => {
+                                        const idx = images.findIndex(m => m.id === img.id)
+                                        const name = outputNames[idx] || `video_${i}`
+                                        const st = uploadStatus[img.id]
+                                        const isUploading = st === 'uploading'
+                                        const isDone = st && st !== 'uploading' && !String(st).startsWith('error')
+                                        const isError = String(st || '').startsWith('error')
 
-                                    return (
-                                        <div className="status-item status-item--done" key={img.id}>
-                                            <img className="status-item__thumb" src={img.preview} alt={name} />
+                                        return (
+                                            <div className="status-item status-item--done" key={img.id}>
+                                                <img className="status-item__thumb" src={img.preview} alt={name} />
                                             <div className="status-item__info">
                                                 <p className="status-item__name">{name}.mp4</p>
                                                 <p className="status-item__detail" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -169,7 +170,8 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                                         </div>
                                     )
                                 })}
-                            </div>
+                                </div>
+                            )}
                         </>
                     ) : (
                         <div className="tip-box">

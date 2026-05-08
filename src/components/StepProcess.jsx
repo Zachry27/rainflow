@@ -5,7 +5,7 @@ import { Link, UploadCloud, Play, Settings as SettingsIcon, Music, CheckCircle, 
 
 let socket = null;
 
-export default function StepProcess({ images, onImagesChange, outputNames, onComplete, settings, onUpdateSettings, onJobCompleted }) {
+export default function StepProcess({ images, onImagesChange, outputNames, onComplete, settings, onUpdateSettings, onJobCompleted, isActive = true }) {
   // ─── Mode: 'connected' (pakai Step 2) atau 'standalone' (manual) ───
   const [mode, setMode] = useState('connected');
 
@@ -348,7 +348,7 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
       </div>
 
       {/* ── Job Status Panel ── */}
-      {jobs.length > 0 && (
+      {jobs.length > 0 && isActive && (
         <div className="glass-panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><Activity size={20} style={{ color: 'var(--success)' }} /> Status Pemrosesan</h2>
