@@ -10,9 +10,10 @@ import StepGenerate from './components/StepGenerate'
 import StepProcess from './components/StepProcess'
 import StepExport from './components/StepExport'
 import StorageManager from './components/StorageManager'
+import Dashboard from './components/Dashboard'
 
 export default function MainApp() {
-    const [activeStep, setActiveStep] = useState('upload')
+    const [activeStep, setActiveStep] = useState('dashboard')
     const [images, setImages] = useState([])
     const [driveToken, setDriveToken] = useState(null)
     const [driveUser, setDriveUser] = useState(null)   // { name, email }
@@ -110,42 +111,61 @@ export default function MainApp() {
         if (!settings.autoUploadAndDelete || !driveToken) return;
         
         try {
-            // Upload to Google Drive
-            const uploadRes = await fetch('/v1/drive/upload', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    video_url: job.resultUrl,
-                    filename: `${outputName}.mp4`,
-                    access_token: driveToken,
-                }),
-            });
+            showToast(`⏳ Auto-uploading ${outputName} ke Drive...`);
 
-            if (!uploadRes.ok) throw new Error('Upload failed');
-            const uploadResult = await uploadRes.json();
-            
-            if (uploadResult.success) {
-                // Add to history
-                try {
-                    const history = JSON.parse(localStorage.getItem('rainflowUploadHistory') || '[]');
-                    history.unshift({
-                        name: `${outputName}.mp4`,
-                        date: new Date().toISOString(),
-                        url: uploadResult.drive_url
-                    });
-                    localStorage.setItem('rainflowUploadHistory', JSON.stringify(history));
-                } catch (e) {}
+            // 1) Download video dari BenAlus (lewat proxy /downloads, port 3000)
+            const videoRes = await fetch(job.resultUrl);
+            if (!videoRes.ok) throw new Error(`Download gagal: HTTP ${videoRes.status}`);
+            const videoBlob = await videoRes.blob();
 
-                // Delete local file
-                const filename = job.resultUrl.split('/').pop();
-                if (filename) {
-                    await fetch(`/api/file/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+            // 2) Upload langsung ke Google Drive API dari browser (tanpa backend Python)
+            const metadata = {
+                name: `${outputName}.mp4`,
+                mimeType: 'video/mp4',
+            };
+
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            form.append('file', videoBlob);
+
+            const driveRes = await fetch(
+                'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+                {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${driveToken}` },
+                    body: form,
                 }
-                showToast(`✅ ${outputName} auto-uploaded & deleted locally.`);
+            );
+
+            if (!driveRes.ok) {
+                const errText = await driveRes.text().catch(() => '');
+                throw new Error(`Drive upload gagal: HTTP ${driveRes.status} ${errText.slice(0, 100)}`);
             }
+
+            const driveResult = await driveRes.json();
+            const driveUrl = driveResult.webViewLink || `https://drive.google.com/file/d/${driveResult.id}/view`;
+
+            // 3) Simpan ke history (localStorage)
+            try {
+                const history = JSON.parse(localStorage.getItem('rainflowUploadHistory') || '[]');
+                history.unshift({
+                    name: `${outputName}.mp4`,
+                    date: new Date().toISOString(),
+                    url: driveUrl,
+                });
+                localStorage.setItem('rainflowUploadHistory', JSON.stringify(history));
+            } catch (e) {}
+
+            // 4) Hapus file lokal dari BenAlus server
+            const filename = job.resultUrl.split('/').pop();
+            if (filename) {
+                await fetch(`/api/file/${encodeURIComponent(filename)}`, { method: 'DELETE' }).catch(() => {});
+            }
+
+            showToast(`✅ ${outputName} → Drive berhasil & lokal dihapus!`);
         } catch (err) {
-            console.error('Auto upload error', err);
-            showToast(`Gagal auto-upload ${outputName}`, true);
+            console.error('Auto upload error:', err);
+            showToast(`Gagal auto-upload ${outputName}: ${err.message}`, true);
         }
     }, [settings.autoUploadAndDelete, driveToken, showToast]);
 
@@ -192,40 +212,31 @@ export default function MainApp() {
             {/* ── Main Content ── */}
             <main className="main-content" id="main-content">
 
-                {/* Drive status chip — shown on mobile only, hidden on desktop (sidebar handles it) */}
+                {/* Drive status chip — mobile only */}
                 <div className="drive-chip-bar">
                     <GoogleDrive onTokenChange={setDriveToken} onUserChange={setDriveUser} compact />
                 </div>
 
-                {/* Pipeline Stepper */}
-                <PipelineStepper
-                    activeStep={activeStep}
-                    completedSteps={completedSteps}
-                    onStepChange={setActiveStep}
-                />
+                {/* Pipeline Stepper — hanya tampil saat di step pipeline */}
+                {activeStep !== 'dashboard' && (
+                    <PipelineStepper
+                        activeStep={activeStep}
+                        completedSteps={completedSteps}
+                        onStepChange={setActiveStep}
+                    />
+                )}
 
-                {/* Settings FAB button */}
-                <div style={{ position: 'fixed', bottom: 80, right: 20, zIndex: 90, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <button
-                        className="settings-fab"
-                        style={{ position: 'relative', bottom: 0, right: 0 }}
-                        onClick={() => setIsStorageOpen(true)}
-                        title="Buka Storage"
-                    >
-                        🗄️
-                        <span className="settings-fab__label" style={{ fontSize: 10 }}>Storage</span>
-                    </button>
-                    <button
-                        className="settings-fab"
-                        style={{ position: 'relative', bottom: 0, right: 0 }}
-                        onClick={() => setIsSettingsOpen(true)}
-                        id="settings-fab-btn"
-                        title="Buka Pengaturan"
-                    >
-                        ⚙️
-                        <span className="settings-fab__label">Settings</span>
-                    </button>
-                </div>
+                {/* Dashboard */}
+                {activeStep === 'dashboard' && (
+                    <Dashboard
+                        images={images}
+                        completedSteps={completedSteps}
+                        driveStatus={driveStatus}
+                        onStepChange={setActiveStep}
+                        onOpenSettings={() => setIsSettingsOpen(true)}
+                        onOpenStorage={() => setIsStorageOpen(true)}
+                    />
+                )}
 
                 {/* Step content — all mounted, show/hide via CSS */}
                 <div style={{ display: activeStep === 'upload' ? 'block' : 'none' }}>

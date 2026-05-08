@@ -3,9 +3,9 @@
   "loopMode": "alpha_fade",
   "deflicker": false,
   "deshake": false,
-  "enableAudio": true,
+  "enableAudio": false,
   "outputType": "count",
-  "outputCount": "20",
+  "outputCount": "2",
   "outputDuration": 60,
   "fadeDuration": 1,
   "outputHours": ""

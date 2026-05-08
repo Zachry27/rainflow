@@ -20,36 +20,49 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
 
     const startDate = getStartDate()
 
-    // Upload a single video to Google Drive via backend proxy
+    // Upload satu video langsung ke Google Drive API (tanpa backend Python)
     const uploadToDrive = useCallback(async (img, outputName) => {
         if (!driveToken || !img.videoUrl) return
 
         setUploadStatus(prev => ({ ...prev, [img.id]: 'uploading' }))
 
         try {
-            const response = await fetch('/v1/drive/upload', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    video_url: img.videoUrl,
-                    filename: `${outputName}.mp4`,
-                    access_token: driveToken,
-                }),
-            })
+            // 1. Download video dari BenAlus
+            const videoRes = await fetch(img.videoUrl)
+            if (!videoRes.ok) throw new Error(`Download gagal: HTTP ${videoRes.status}`)
+            const videoBlob = await videoRes.blob()
 
-            if (!response.ok) {
-                const err = await response.text().catch(() => 'Unknown error')
-                throw new Error(`Upload gagal: ${err.slice(0, 100)}`)
+            // 2. Upload langsung ke Google Drive API
+            const metadata = { name: `${outputName}.mp4`, mimeType: 'video/mp4' }
+            const form = new FormData()
+            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))
+            form.append('file', videoBlob)
+
+            const driveRes = await fetch(
+                'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+                {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${driveToken}` },
+                    body: form,
+                }
+            )
+
+            if (!driveRes.ok) {
+                const errText = await driveRes.text().catch(() => '')
+                throw new Error(`Drive upload gagal: HTTP ${driveRes.status} ${errText.slice(0, 80)}`)
             }
 
-            const result = await response.json()
-            if (result.success) {
-                setUploadStatus(prev => ({ ...prev, [img.id]: result.drive_url || 'done' }))
-            } else {
-                throw new Error(result.error || 'Upload gagal')
-            }
+            const result = await driveRes.json()
+            const driveUrl = result.webViewLink || `https://drive.google.com/file/d/${result.id}/view`
+
+            // 3. Simpan ke riwayat
+            try {
+                const history = JSON.parse(localStorage.getItem('rainflowUploadHistory') || '[]')
+                history.unshift({ name: `${outputName}.mp4`, date: new Date().toISOString(), url: driveUrl })
+                localStorage.setItem('rainflowUploadHistory', JSON.stringify(history))
+            } catch (e) {}
+
+            setUploadStatus(prev => ({ ...prev, [img.id]: driveUrl }))
         } catch (err) {
             setUploadStatus(prev => ({ ...prev, [img.id]: `error:${err.message}` }))
         }

@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import MainApp from './MainApp';
 import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
-import Header from './components/Header'; // Maybe not needed if MainApp has it
 
 const ProtectedRoute = ({ children }) => {
     const { user, loading } = useAuth();

@@ -8,10 +8,11 @@ export default function Topbar({ onMenuToggle, activeStep, isSidebarOpen }) {
     const [userMenuOpen, setUserMenuOpen] = useState(false)
 
     const STEP_LABELS = {
+        dashboard: '🏠 Beranda',
         upload: '📁 Import Gambar',
         generate: '🤖 Generate Video',
-        process: '🔁 FFmpeg Process',
-        export: '📦 Export & Upload',
+        process: '🔁 Seamless Loop',
+        export: '📦 Export & Ringkasan',
     }
 
     return (

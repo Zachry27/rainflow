@@ -75,6 +75,9 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
     return () => { if (socket) socket.disconnect(); };
   }, [backendUrl]);
 
+  // Track which jobs have already triggered onJobCompleted to avoid duplicates
+  const processedJobsRef = useRef(new Set());
+
   // ─── Sync hasil ke Step 4 (hanya mode connected) ───
   useEffect(() => {
     if (mode !== 'connected') return;
@@ -85,13 +88,20 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
     const newImages = [...images];
     completedJobs.forEach(job => {
       const idx = newImages.findIndex(img => img.id === job.imageId);
-      if (idx !== -1 && !(newImages[idx].videoUrl || '').includes(':3000')) {
+      if (idx === -1) return;
+
+      // Update videoUrl only if it hasn't been set to a /downloads/ result yet
+      const currentUrl = newImages[idx].videoUrl || '';
+      if (!currentUrl.includes('/downloads/')) {
         newImages[idx] = { ...newImages[idx], videoUrl: `${backendUrl}${job.resultUrl}` };
         changed = true;
-        if (onJobCompleted) {
-          const outName = (outputNames && outputNames[idx]) ? outputNames[idx] : `video_${idx}`;
-          onJobCompleted(job, newImages[idx], outName);
-        }
+      }
+
+      // Fire onJobCompleted exactly once per job
+      if (onJobCompleted && !processedJobsRef.current.has(job.id)) {
+        processedJobsRef.current.add(job.id);
+        const outName = (outputNames && outputNames[idx]) ? outputNames[idx] : `video_${idx}`;
+        onJobCompleted(job, newImages[idx], outName);
       }
     });
 
@@ -116,10 +126,15 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
   };
 
   // ─── Kirim satu video ke backend ───
-  const sendVideo = async (videoBlob, fileName, imageId = null) => {
-    const file = videoBlob instanceof File ? videoBlob : new File([videoBlob], fileName, { type: 'video/mp4' });
+  const sendVideo = async (videoSource, fileName, imageId = null) => {
     const formData = new FormData();
-    formData.append('video', file);
+    if (typeof videoSource === 'string') {
+      formData.append('videoUrl', videoSource);
+      formData.append('fileName', fileName);
+    } else {
+      const file = videoSource instanceof File ? videoSource : new File([videoSource], fileName, { type: 'video/mp4' });
+      formData.append('video', file);
+    }
     // Kirim nama file audio dari library (tidak upload file)
     if ((settings.enableAudio === true || settings.enableAudio === 'true') && audioName) {
       formData.append('audioName', audioName);
@@ -154,9 +169,7 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
       const originalIndex = (images || []).findIndex(m => m.id === img.id);
       const outName = (outputNames && outputNames[originalIndex]) ? outputNames[originalIndex] : `video_${i}`;
       try {
-        const resp = await fetch(img.videoUrl);
-        const blob = await resp.blob();
-        await sendVideo(blob, `${outName}_raw.mp4`, img.id);
+        await sendVideo(img.videoUrl, `${outName}_raw.mp4`, img.id);
         ok++;
       } catch (err) {
         showToast(`Gagal video ${outName}: ${err.message}`, true);

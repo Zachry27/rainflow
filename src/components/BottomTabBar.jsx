@@ -1,15 +1,16 @@
 import React from 'react'
 
 const TABS = [
-    { id: 'upload',   icon: '📁', label: 'Import' },
-    { id: 'generate', icon: '🤖', label: 'Generate' },
-    { id: 'process',  icon: '🔁', label: 'Process' },
-    { id: 'export',   icon: '📦', label: 'Export' },
+    { id: 'dashboard', icon: '🏠', label: 'Beranda' },
+    { id: 'upload',    icon: '📁', label: 'Import' },
+    { id: 'generate',  icon: '🤖', label: 'Generate' },
+    { id: 'process',   icon: '🔁', label: 'Loop' },
+    { id: 'export',    icon: '📦', label: 'Export' },
 ]
 
 export default function BottomTabBar({ activeStep, onStepChange, completedSteps }) {
     return (
-        <nav className="bottom-tab-bar" id="bottom-tab-bar" aria-label="Main navigation">
+        <nav className="bottom-tab-bar" id="bottom-tab-bar" aria-label="Navigasi utama">
             {TABS.map((tab) => {
                 const isActive = activeStep === tab.id
                 const isDone = completedSteps?.[tab.id]

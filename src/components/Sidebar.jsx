@@ -1,12 +1,20 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+
+const PIPELINE_STEPS = [
+    { id: 'upload',   icon: '📁', label: 'Import Gambar' },
+    { id: 'generate', icon: '🤖', label: 'Generate Video' },
+    { id: 'process',  icon: '🔁', label: 'Seamless Loop' },
+    { id: 'export',   icon: '📦', label: 'Export & Ringkasan' },
+]
 
 export default function Sidebar({
     activeStep,
     onStepChange,
     completedSteps,
     imageCount,
-    driveStatus,      // { connected: bool, name: string, email: string }
+    driveStatus,
     isOpen,
     isCollapsed,
     onToggleCollapse,
@@ -14,6 +22,20 @@ export default function Sidebar({
     onOpenStorage,
 }) {
     const navigate = useNavigate()
+    const { user } = useAuth()
+
+    const NavItem = ({ id, icon, label, onClick, isActive, isDone }) => (
+        <button
+            className={`sidebar__nav-item ${isActive ? 'sidebar__nav-item--active' : ''} ${isDone && !isActive ? 'sidebar__nav-item--done' : ''}`}
+            onClick={onClick}
+            title={isCollapsed ? label : ''}
+            id={`sidebar-nav-${id}`}
+        >
+            <span className="sidebar__nav-icon">{isDone && !isActive ? '✓' : icon}</span>
+            {!isCollapsed && <span className="sidebar__nav-label">{label}</span>}
+            {isActive && <span className="sidebar__nav-indicator" />}
+        </button>
+    )
 
     return (
         <aside
@@ -33,77 +55,94 @@ export default function Sidebar({
                     className="sidebar__collapse-btn"
                     onClick={onToggleCollapse}
                     id="sidebar-collapse-btn"
-                    title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    title={isCollapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
                 >
                     {isCollapsed ? '›' : '‹'}
                 </button>
             </div>
 
-            {/* Main Menu section */}
+            {/* Navigasi Utama */}
             <div className="sidebar__section">
                 {!isCollapsed && (
-                    <span className="sidebar__section-label">Menu Utama</span>
+                    <span className="sidebar__section-label">Navigasi</span>
                 )}
                 <nav className="sidebar__nav" id="sidebar-nav">
-                    <button
-                        className={`sidebar__nav-item sidebar__nav-item--active`}
-                        onClick={() => onStepChange('upload')}
-                        title={isCollapsed ? 'Beranda' : ''}
-                    >
-                        <span className="sidebar__nav-icon">🏠</span>
-                        {!isCollapsed && <span className="sidebar__nav-label">Beranda</span>}
-                        <span className="sidebar__nav-indicator" />
-                    </button>
-                    <button
-                        className="sidebar__nav-item"
+                    <NavItem
+                        id="dashboard"
+                        icon="🏠"
+                        label="Beranda"
+                        onClick={() => onStepChange('dashboard')}
+                        isActive={activeStep === 'dashboard'}
+                    />
+                    <NavItem
+                        id="storage"
+                        icon="🗄️"
+                        label="Storage & Riwayat"
                         onClick={onOpenStorage}
-                        title={isCollapsed ? 'Storage & History' : ''}
-                    >
-                        <span className="sidebar__nav-icon">🗄️</span>
-                        {!isCollapsed && <span className="sidebar__nav-label">Storage & History</span>}
-                    </button>
-                    <button
-                        className="sidebar__nav-item"
+                        isActive={false}
+                    />
+                    <NavItem
+                        id="settings"
+                        icon="⚙️"
+                        label="Pengaturan"
                         onClick={onOpenSettings}
-                        title={isCollapsed ? 'Pengaturan' : ''}
-                    >
-                        <span className="sidebar__nav-icon">⚙️</span>
-                        {!isCollapsed && <span className="sidebar__nav-label">Pengaturan</span>}
-                    </button>
+                        isActive={false}
+                    />
                 </nav>
             </div>
 
-            {/* Divider */}
             <div className="sidebar__divider" />
 
-            {/* Utility section */}
+            {/* Pipeline Steps */}
             <div className="sidebar__section">
                 {!isCollapsed && (
-                    <span className="sidebar__section-label">More</span>
+                    <span className="sidebar__section-label">Pipeline</span>
                 )}
                 <nav className="sidebar__nav">
-                    <button
-                        className="sidebar__nav-item"
-                        onClick={() => navigate('/admin')}
-                        id="sidebar-admin-btn"
-                        title={isCollapsed ? 'Admin Dashboard' : ''}
-                    >
-                        <span className="sidebar__nav-icon">📊</span>
-                        {!isCollapsed && <span className="sidebar__nav-label">Admin</span>}
-                    </button>
+                    {PIPELINE_STEPS.map(step => (
+                        <NavItem
+                            key={step.id}
+                            id={step.id}
+                            icon={step.icon}
+                            label={step.label}
+                            onClick={() => onStepChange(step.id)}
+                            isActive={activeStep === step.id}
+                            isDone={completedSteps?.[step.id]}
+                        />
+                    ))}
                 </nav>
             </div>
+
+            <div className="sidebar__divider" />
+
+            {/* Admin (hanya untuk admin) */}
+            {user?.role === 'admin' && (
+                <div className="sidebar__section">
+                    <nav className="sidebar__nav">
+                        <NavItem
+                            id="admin"
+                            icon="📊"
+                            label="Admin Dashboard"
+                            onClick={() => navigate('/admin')}
+                            isActive={false}
+                        />
+                    </nav>
+                </div>
+            )}
 
             {/* Spacer */}
             <div style={{ flex: 1 }} />
 
             {/* Drive Status */}
-            <div className={`sidebar__drive ${driveStatus?.connected ? 'sidebar__drive--connected' : ''}`} id="sidebar-drive-status">
+            <div
+                className={`sidebar__drive ${driveStatus?.connected ? 'sidebar__drive--connected' : ''}`}
+                id="sidebar-drive-status"
+            >
                 <span className={`sidebar__drive-dot ${driveStatus?.connected ? 'sidebar__drive-dot--on' : 'sidebar__drive-dot--off'}`} />
                 {!isCollapsed && (
                     <div className="sidebar__drive-info">
                         <span className="sidebar__drive-label">
-                            {driveStatus?.connected ? 'Drive Connected' : 'Drive Disconnected'}
+                            {driveStatus?.connected ? 'Drive Terhubung' : 'Drive Terputus'}
                         </span>
                         {driveStatus?.connected && driveStatus?.name && (
                             <span className="sidebar__drive-name">{driveStatus.name}</span>

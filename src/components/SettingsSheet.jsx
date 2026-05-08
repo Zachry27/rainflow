@@ -50,9 +50,24 @@ export default function SettingsSheet({ isOpen, onClose, settings, onUpdateSetti
                             <div className="settings-field">
                                 <label className="settings-field__label">Integrasi Google Drive</label>
                                 <p style={{fontSize: 13, color: 'var(--text-dim)', marginBottom: 12}}>
-                                    Isi Client ID di bawah dan klik Connect Drive untuk dapat mengambil gambar dari Drive dan upload video hasil generate.
+                                    Isi Client ID dan klik Hubungkan untuk mengambil gambar dari Drive dan mengupload video hasil generate.
                                 </p>
                                 <GoogleDrive onTokenChange={setDriveToken} onUserChange={setDriveUser} />
+                            </div>
+                            <div className="settings-field" style={{ marginTop: 16 }}>
+                                <label className="settings-field__label">⚡ Auto Upload & Hapus Lokal</label>
+                                <label className="sheet__checkbox-label" style={{ marginTop: 8 }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.autoUploadAndDelete ?? true}
+                                        onChange={e => onUpdateSettings('autoUploadAndDelete', e.target.checked)}
+                                        id="toggle-auto-upload"
+                                    />
+                                    Otomatis upload ke Drive & hapus lokal setelah looping selesai
+                                </label>
+                                <span className="settings-field__help">
+                                    Setiap video yang selesai di-loop langsung dikirim ke Google Drive dan dihapus dari server BenAlus untuk menghemat penyimpanan. Membutuhkan Drive terhubung.
+                                </span>
                             </div>
                         </div>
                     )}

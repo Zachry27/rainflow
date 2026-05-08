@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.logger import logger
@@ -59,6 +60,8 @@ app.include_router(admin_router, prefix="/v1/admin", tags=["admin"])
 app.include_router(drive_router, prefix="/v1", tags=["drive"])
 app.include_router(generate_router, prefix="/v1")
 app.include_router(ffmpeg_router, prefix="/v1")
+app.mount("/images", StaticFiles(directory=str(settings.IMAGES_DIR)), name="images")
+app.mount("/videos", StaticFiles(directory=str(settings.VIDEOS_DIR)), name="videos")
 
 
 @app.get("/")

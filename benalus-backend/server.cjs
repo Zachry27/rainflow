@@ -237,11 +237,36 @@ app.get('/api/audio-list', (req, res) => {
 // Serve audio files as static
 app.use('/audio-assets', express.static(AUDIO_DIR));
 
-app.post('/api/process', upload.fields([{name:'video'},{name:'audio'}]), (req, res) => {
-  const videoFile = req.files?.video?.[0];
+app.post('/api/process', upload.fields([{name:'video'},{name:'audio'}]), async (req, res) => {
+  let videoFile = req.files?.video?.[0];
   const audioFile = req.files?.audio?.[0]; // uploaded file (optional)
   const audioName = req.body.audioName || null; // asset filename from library
-  if (!videoFile) return res.status(400).json({error:'Video file required'});
+  const videoUrl = req.body.videoUrl || null;
+  const fileName = req.body.fileName || `downloaded_${Date.now()}.mp4`;
+
+  if (!videoFile && !videoUrl) return res.status(400).json({error:'Video file or videoUrl required'});
+
+  // Download video from URL if provided instead of file
+  if (!videoFile && videoUrl) {
+    try {
+      console.log(`[DOWNLOAD] Fetching video from URL: ${videoUrl}`);
+      // Use global fetch (Node 18+)
+      const fetchReq = typeof fetch !== 'undefined' ? fetch : (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+      const resp = await fetchReq(videoUrl);
+      
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const arrayBuffer = await resp.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      
+      const outPath = path.join(UPLOADS_DIR, `${Date.now()}_${fileName}`);
+      fs.writeFileSync(outPath, buffer);
+      videoFile = { path: outPath, originalname: fileName };
+      console.log(`[DOWNLOAD] Success: ${outPath}`);
+    } catch (err) {
+      console.error('[DOWNLOAD ERROR]', err);
+      return res.status(500).json({error: `Gagal download video dari URL: ${err.message}`});
+    }
+  }
 
   const jobId   = Date.now().toString();
   const imageId = req.body.imageId || null;

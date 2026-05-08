@@ -42,6 +42,10 @@
     --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     --font-body: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    /* Aliases for component compatibility */
+    --bg-card: rgba(17, 24, 39, 0.75);
+    --bg-lighter: rgba(31, 41, 55, 0.6);
+    --danger: #ef4444;
 }
 
 *,

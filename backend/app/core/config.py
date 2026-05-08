@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     SSO_DAILY_LIMIT: int = 50
 
     VIDEOS_DIR: Path = ROOT_DIR / "data" / "videos"
+    IMAGES_DIR: Path = ROOT_DIR / "data" / "images"
     BASE_URL: Optional[str] = None
 
     DEFAULT_ASPECT_RATIO: str = "16:9"
@@ -58,5 +59,6 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# Pastikan direktori video ada
+# Pastikan direktori video & image ada
 settings.VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
+settings.IMAGES_DIR.mkdir(parents=True, exist_ok=True)
