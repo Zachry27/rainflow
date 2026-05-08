@@ -5,7 +5,7 @@ import { Link, UploadCloud, Play, Settings as SettingsIcon, Music, CheckCircle, 
 
 let socket = null;
 
-export default function StepProcess({ images, onImagesChange, outputNames, onComplete, settings, onJobCompleted }) {
+export default function StepProcess({ images, onImagesChange, outputNames, onComplete, settings, onUpdateSettings, onJobCompleted }) {
   // ─── Mode: 'connected' (pakai Step 2) atau 'standalone' (manual) ───
   const [mode, setMode] = useState('connected');
 
@@ -288,7 +288,7 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
       {/* ── Audio Input (shared) ── */}
       <div className="glass-panel" style={{ padding: '20px 30px' }}>
         <div className="checkbox-group">
-          <input type="checkbox" id="enableAudio" name="enableAudio" checked={settings.enableAudio} onChange={handleSettingChange} />
+          <input type="checkbox" id="enableAudio" name="enableAudio" checked={settings.enableAudio} onChange={e => onUpdateSettings('enableAudio', e.target.checked)} />
           <label htmlFor="enableAudio" style={{ marginBottom: 0 }}>Enable Audio Background</label>
         </div>
         {settings.enableAudio && (
