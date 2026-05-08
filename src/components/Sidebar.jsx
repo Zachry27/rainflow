@@ -1,12 +1,13 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { Home, HardDrive, Settings, Image as ImageIcon, Video, RefreshCw, UploadCloud, Activity, Waves, ChevronLeft, ChevronRight, Check } from 'lucide-react'
 
 const PIPELINE_STEPS = [
-    { id: 'upload',   icon: '📁', label: 'Import Gambar' },
-    { id: 'generate', icon: '🤖', label: 'Generate Video' },
-    { id: 'process',  icon: '🔁', label: 'Seamless Loop' },
-    { id: 'export',   icon: '📦', label: 'Export & Ringkasan' },
+    { id: 'upload',   icon: <ImageIcon size={18} />, label: 'Import Gambar' },
+    { id: 'generate', icon: <Video size={18} />, label: 'Generate Video' },
+    { id: 'process',  icon: <RefreshCw size={18} />, label: 'Seamless Loop' },
+    { id: 'export',   icon: <UploadCloud size={18} />, label: 'Export & Ringkasan' },
 ]
 
 export default function Sidebar({
@@ -31,7 +32,7 @@ export default function Sidebar({
             title={isCollapsed ? label : ''}
             id={`sidebar-nav-${id}`}
         >
-            <span className="sidebar__nav-icon">{isDone && !isActive ? '✓' : icon}</span>
+            <span className="sidebar__nav-icon">{isDone && !isActive ? <Check size={16} /> : icon}</span>
             {!isCollapsed && <span className="sidebar__nav-label">{label}</span>}
             {isActive && <span className="sidebar__nav-indicator" />}
         </button>
@@ -44,7 +45,7 @@ export default function Sidebar({
         >
             {/* Logo */}
             <div className="sidebar__logo">
-                <span className="sidebar__logo-icon">🌊</span>
+                <span className="sidebar__logo-icon" style={{ color: 'var(--primary-light)' }}><Waves size={24} /></span>
                 {!isCollapsed && (
                     <div className="sidebar__logo-text-wrap">
                         <span className="sidebar__logo-name">RainFlow</span>
@@ -57,7 +58,7 @@ export default function Sidebar({
                     id="sidebar-collapse-btn"
                     title={isCollapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
                 >
-                    {isCollapsed ? '›' : '‹'}
+                    {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
                 </button>
             </div>
 
@@ -69,21 +70,21 @@ export default function Sidebar({
                 <nav className="sidebar__nav" id="sidebar-nav">
                     <NavItem
                         id="dashboard"
-                        icon="🏠"
+                        icon={<Home size={18} />}
                         label="Beranda"
                         onClick={() => onStepChange('dashboard')}
                         isActive={activeStep === 'dashboard'}
                     />
                     <NavItem
                         id="storage"
-                        icon="🗄️"
+                        icon={<HardDrive size={18} />}
                         label="Storage & Riwayat"
                         onClick={onOpenStorage}
                         isActive={false}
                     />
                     <NavItem
                         id="settings"
-                        icon="⚙️"
+                        icon={<Settings size={18} />}
                         label="Pengaturan"
                         onClick={onOpenSettings}
                         isActive={false}
@@ -121,7 +122,7 @@ export default function Sidebar({
                     <nav className="sidebar__nav">
                         <NavItem
                             id="admin"
-                            icon="📊"
+                            icon={<Activity size={18} />}
                             label="Admin Dashboard"
                             onClick={() => navigate('/admin')}
                             isActive={false}

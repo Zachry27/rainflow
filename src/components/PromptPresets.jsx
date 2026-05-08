@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { Save, Star, X } from 'lucide-react'
 
 const STORAGE_KEY = 'rainflow_prompt_presets'
 
@@ -12,6 +13,11 @@ function loadPresets() {
 
 function savePresets(presets) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(presets))
+    fetch('/api/app-data/prompt_presets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: presets })
+    }).catch(() => {})
 }
 
 export default function PromptPresets({ currentPrompt, onApply }) {
@@ -19,10 +25,27 @@ export default function PromptPresets({ currentPrompt, onApply }) {
     const [saveName, setSaveName] = useState('')
     const [saving, setSaving] = useState(false)
 
-    // On first mount, apply default preset if prompt is empty
+    // Sync with server on mount
     useEffect(() => {
-        const def = loadPresets().find(p => p.isDefault)
-        if (def && !currentPrompt) onApply(def.prompt)
+        let isFirstLoad = true;
+        fetch('/api/app-data/prompt_presets')
+            .then(res => res.json())
+            .then(res => {
+                if (res.data && Array.isArray(res.data)) {
+                    setPresets(res.data)
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(res.data))
+                    const def = res.data.find(p => p.isDefault)
+                    if (def && !currentPrompt) onApply(def.prompt)
+                    isFirstLoad = false;
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (isFirstLoad) {
+                    const def = loadPresets().find(p => p.isDefault)
+                    if (def && !currentPrompt) onApply(def.prompt)
+                }
+            })
     }, []) // eslint-disable-line
 
     const handleSave = useCallback(() => {
@@ -63,8 +86,8 @@ export default function PromptPresets({ currentPrompt, onApply }) {
         return (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Belum ada preset tersimpan.</span>
-                <button className="btn btn--sm btn--outline" onClick={() => setSaving(true)} id="btn-save-preset-first">
-                    💾 Simpan Prompt Ini
+                <button className="btn btn--sm btn--outline" onClick={() => setSaving(true)} id="btn-save-preset-first" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Save size={14} /> Simpan Prompt Ini
                 </button>
             </div>
         )
@@ -82,7 +105,7 @@ export default function PromptPresets({ currentPrompt, onApply }) {
                                 onClick={() => handleApply(preset)}
                                 title={preset.prompt}
                             >
-                                {preset.isDefault && <span style={{ marginRight: 4 }}>⭐</span>}
+                                {preset.isDefault && <Star size={12} fill="currentColor" style={{ marginRight: 4, color: '#f59e0b' }} />}
                                 {preset.name}
                             </button>
                             <button
@@ -90,14 +113,14 @@ export default function PromptPresets({ currentPrompt, onApply }) {
                                 title="Jadikan default"
                                 onClick={() => handleSetDefault(preset.id)}
                             >
-                                {preset.isDefault ? '★' : '☆'}
+                                <Star size={14} fill={preset.isDefault ? "currentColor" : "none"} style={{ color: preset.isDefault ? '#f59e0b' : 'inherit' }} />
                             </button>
                             <button
                                 className="preset-tag__action preset-tag__action--del"
                                 title="Hapus preset"
                                 onClick={() => handleDelete(preset.id)}
                             >
-                                ✕
+                                <X size={14} />
                             </button>
                         </div>
                     ))}
@@ -126,8 +149,8 @@ export default function PromptPresets({ currentPrompt, onApply }) {
                     </button>
                 </div>
             ) : (
-                <button className="btn btn--sm btn--outline" style={{ marginTop: presets.length ? 8 : 0 }} onClick={() => setSaving(true)} id="btn-save-preset">
-                    💾 Simpan Prompt Ini
+                <button className="btn btn--sm btn--outline" style={{ marginTop: presets.length ? 8 : 0, display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => setSaving(true)} id="btn-save-preset">
+                    <Save size={14} /> Simpan Prompt Ini
                 </button>
             )}
         </div>

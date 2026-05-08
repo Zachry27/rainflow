@@ -1,11 +1,12 @@
 import React from 'react'
+import { Home, Image as ImageIcon, Video, RefreshCw, UploadCloud } from 'lucide-react'
 
 const TABS = [
-    { id: 'dashboard', icon: '🏠', label: 'Beranda' },
-    { id: 'upload',    icon: '📁', label: 'Import' },
-    { id: 'generate',  icon: '🤖', label: 'Generate' },
-    { id: 'process',   icon: '🔁', label: 'Loop' },
-    { id: 'export',    icon: '📦', label: 'Export' },
+    { id: 'dashboard', icon: <Home size={20} />, label: 'Beranda' },
+    { id: 'upload',    icon: <ImageIcon size={20} />, label: 'Import' },
+    { id: 'generate',  icon: <Video size={20} />, label: 'Generate' },
+    { id: 'process',   icon: <RefreshCw size={20} />, label: 'Loop' },
+    { id: 'export',    icon: <UploadCloud size={20} />, label: 'Export' },
 ]
 
 export default function BottomTabBar({ activeStep, onStepChange, completedSteps }) {

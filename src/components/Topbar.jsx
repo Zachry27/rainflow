@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import { Home, Image as ImageIcon, Video, RefreshCw, UploadCloud, Waves, Activity, LogOut, ChevronDown, ChevronUp } from 'lucide-react'
 
 export default function Topbar({ onMenuToggle, activeStep, isSidebarOpen }) {
     const { user, logout } = useAuth()
@@ -8,11 +9,11 @@ export default function Topbar({ onMenuToggle, activeStep, isSidebarOpen }) {
     const [userMenuOpen, setUserMenuOpen] = useState(false)
 
     const STEP_LABELS = {
-        dashboard: '🏠 Beranda',
-        upload: '📁 Import Gambar',
-        generate: '🤖 Generate Video',
-        process: '🔁 Seamless Loop',
-        export: '📦 Export & Ringkasan',
+        dashboard: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Home size={14} /> Beranda</span>,
+        upload: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ImageIcon size={14} /> Import Gambar</span>,
+        generate: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Video size={14} /> Generate Video</span>,
+        process: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><RefreshCw size={14} /> Seamless Loop</span>,
+        export: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><UploadCloud size={14} /> Export & Ringkasan</span>,
     }
 
     return (
@@ -30,7 +31,7 @@ export default function Topbar({ onMenuToggle, activeStep, isSidebarOpen }) {
                     </span>
                 </button>
                 <div className="topbar__logo">
-                    <span className="topbar__logo-icon">🌊</span>
+                    <span className="topbar__logo-icon" style={{ color: 'var(--primary-light)' }}><Waves size={20} /></span>
                     <span className="topbar__logo-text">RainFlow</span>
                     <span className="topbar__logo-badge">v2</span>
                 </div>
@@ -58,7 +59,7 @@ export default function Topbar({ onMenuToggle, activeStep, isSidebarOpen }) {
                                 {user.username?.[0]?.toUpperCase() || 'U'}
                             </div>
                             <span className="topbar__username">{user.username}</span>
-                            <span className="topbar__chevron">{userMenuOpen ? '▲' : '▼'}</span>
+                            <span className="topbar__chevron">{userMenuOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
                         </button>
 
                         {userMenuOpen && (
@@ -75,16 +76,18 @@ export default function Topbar({ onMenuToggle, activeStep, isSidebarOpen }) {
                                         className="topbar__dropdown-item"
                                         onClick={() => { navigate('/admin'); setUserMenuOpen(false) }}
                                         id="topbar-admin-btn"
+                                        style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                                     >
-                                        📊 Dashboard Admin
+                                        <Activity size={16} /> Dashboard Admin
                                     </button>
                                 )}
                                 <button
                                     className="topbar__dropdown-item topbar__dropdown-item--danger"
                                     onClick={() => { logout(); setUserMenuOpen(false) }}
                                     id="topbar-logout-btn"
+                                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                                 >
-                                    🚪 Logout
+                                    <LogOut size={16} /> Logout
                                 </button>
                             </div>
                         )}

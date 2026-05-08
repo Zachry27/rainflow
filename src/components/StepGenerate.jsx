@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react'
+import { Sparkles, Bot, Image as ImageIcon, Rocket, RefreshCw, Square, CheckCircle, XCircle, Clock } from 'lucide-react'
 import PromptPresets from './PromptPresets'
 
 // Promise pool — execute `tasks` with max `concurrency` at a time
@@ -180,7 +181,7 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
         return (
             <div className="card">
                 <div className="empty-state">
-                    <span className="empty-state__icon">🤖</span>
+                    <ImageIcon size={40} className="empty-state__icon" style={{ color: 'var(--text-muted)', marginBottom: 12, opacity: 0.5 }} />
                     <p className="empty-state__text">Import gambar dulu di Step 1</p>
                 </div>
             </div>
@@ -194,8 +195,8 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
         <div>
             {/* Prompt Configuration */}
             <div className="card">
-                <h3 className="card__title">
-                    <span className="card__title-icon">✨</span>
+                <h3 className="card__title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Sparkles size={20} className="card__title-icon" style={{ color: '#a78bfa' }} />
                     Prompt & Konfigurasi AI
                 </h3>
                 <p className="card__desc">
@@ -275,8 +276,8 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
 
             {/* Progress & Controls */}
             <div className="card">
-                <h3 className="card__title">
-                    <span className="card__title-icon">🤖</span>
+                <h3 className="card__title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Bot size={20} className="card__title-icon" style={{ color: 'var(--accent)' }} />
                     Step 2 — Generate Video dari Gambar
                 </h3>
 
@@ -321,18 +322,19 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
                                 onClick={startGeneration}
                                 disabled={pendingCount === 0}
                                 id="btn-generate-all"
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                             >
-                                🚀 {doneCount > 0 ? `Lanjutkan Generate (${pendingCount} sisa)` : `Generate ${totalImages} Video (${workers} parallel)`}
+                                <Rocket size={18} /> {doneCount > 0 ? `Lanjutkan Generate (${pendingCount} sisa)` : `Generate ${totalImages} Video (${workers} parallel)`}
                             </button>
                             {errorCount > 0 && (
-                                <button className="btn btn--outline" onClick={retryFailed} id="btn-retry-failed">
-                                    🔄 Retry Failed ({errorCount})
+                                <button className="btn btn--outline" onClick={retryFailed} id="btn-retry-failed" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                    <RefreshCw size={16} /> Retry Failed ({errorCount})
                                 </button>
                             )}
                         </>
                     ) : (
-                        <button className="btn btn--danger btn--full" onClick={stopGeneration} id="btn-stop">
-                            ⏹️ Stop Generation
+                        <button className="btn btn--danger btn--full" onClick={stopGeneration} id="btn-stop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                            <Square size={16} /> Stop Generation
                         </button>
                     )}
                 </div>
@@ -344,11 +346,11 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
                             <img className="status-item__thumb" src={img.preview} alt={img.name} />
                             <div className="status-item__info">
                                 <p className="status-item__name">{outputNames[index] || img.name}</p>
-                                <p className="status-item__detail">
-                                    {img.status === 'generating' && '⏳ Sedang generate video AI...'}
-                                    {img.status === 'done' && '✅ Video berhasil di-generate'}
-                                    {img.status === 'error' && `❌ ${img.error || 'Error'}`}
-                                    {img.status === 'pending' && '⏸️ Menunggu worker tersedia...'}
+                                <p className="status-item__detail" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    {img.status === 'generating' && <><Clock size={12} /> Sedang generate video AI...</>}
+                                    {img.status === 'done' && <><CheckCircle size={12} style={{ color: 'var(--success)' }} /> Video berhasil di-generate</>}
+                                    {img.status === 'error' && <><XCircle size={12} style={{ color: 'var(--error)' }} /> {img.error || 'Error'}</>}
+                                    {img.status === 'pending' && <><Clock size={12} /> Menunggu worker tersedia...</>}
                                 </p>
                             </div>
                             <span className={`status-item__badge status-item__badge--${img.status}`}>

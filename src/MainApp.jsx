@@ -62,10 +62,26 @@ export default function MainApp() {
         setTimeout(() => setToastMessage(null), 3500)
     }, [])
 
+    React.useEffect(() => {
+        fetch('/api/app-data/settings')
+            .then(res => res.json())
+            .then(res => {
+                if (res.data) {
+                    setSettings(prev => ({ ...prev, ...res.data }))
+                }
+            })
+            .catch(err => console.error('Failed to load settings from server', err))
+    }, [])
+
     const saveSettingsToDefault = useCallback(() => {
         try {
             localStorage.setItem('rainflowMainSettings', JSON.stringify(settings))
-            showToast('✅ Pengaturan berhasil disimpan sebagai default!')
+            fetch('/api/app-data/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: settings })
+            }).catch(() => {})
+            showToast('✅ Pengaturan berhasil disimpan ke Server!')
         } catch (e) {
             showToast('Gagal menyimpan: ' + e.message, true)
         }

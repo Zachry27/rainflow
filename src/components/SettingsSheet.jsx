@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Settings, Plug, HardDrive, Video, RefreshCw, Type, Save } from 'lucide-react'
 import GoogleDrive from './GoogleDrive'
 
 export default function SettingsSheet({ isOpen, onClose, settings, onUpdateSettings, onSaveSettings, setDriveToken, setDriveUser }) {
@@ -18,24 +19,27 @@ export default function SettingsSheet({ isOpen, onClose, settings, onUpdateSetti
 
                 {/* Header */}
                 <div className="sheet__header">
-                    <h2 className="sheet__title">⚙️ Pengaturan</h2>
+                    <h2 className="sheet__title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Settings size={20} /> Pengaturan
+                    </h2>
                     <button className="sheet__close" onClick={onClose} id="settings-sheet-close">✕</button>
                 </div>
 
                 {/* Tabs */}
                 <div className="sheet__tabs">
                     {[
-                        { id: 'api',    label: '🔌 API' },
-                        { id: 'drive',  label: '📂 Drive' },
-                        { id: 'video',  label: '🎬 Video' },
-                        { id: 'ffmpeg', label: '🔁 FFmpeg' },
-                        { id: 'naming', label: '🏷️ Naming' },
+                        { id: 'api',    label: <><Plug size={16} /> API</> },
+                        { id: 'drive',  label: <><HardDrive size={16} /> Drive</> },
+                        { id: 'video',  label: <><Video size={16} /> Video</> },
+                        { id: 'ffmpeg', label: <><RefreshCw size={16} /> FFmpeg</> },
+                        { id: 'naming', label: <><Type size={16} /> Naming</> },
                     ].map(tab => (
                         <button
                             key={tab.id}
                             className={`sheet__tab ${activeTab === tab.id ? 'sheet__tab--active' : ''}`}
                             onClick={() => setActiveTab(tab.id)}
                             id={`settings-tab-${tab.id}`}
+                            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                         >
                             {tab.label}
                         </button>
@@ -305,13 +309,12 @@ export default function SettingsSheet({ isOpen, onClose, settings, onUpdateSetti
                     )}
                 </div>
 
-                {/* Footer actions */}
                 <div className="sheet__footer">
                     <button className="btn btn--outline" onClick={onClose} id="settings-cancel-btn">
                         Tutup
                     </button>
-                    <button className="btn btn--primary" onClick={() => { onSaveSettings(); onClose() }} id="btn-save-all-settings">
-                        💾 Save as Default
+                    <button className="btn btn--primary" onClick={() => { onSaveSettings(); onClose() }} id="btn-save-all-settings" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Save size={16} /> Save as Default
                     </button>
                 </div>
             </div>

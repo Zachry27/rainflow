@@ -6,6 +6,7 @@ const path = require('path');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
+const si = require('systeminformation');
 
 const app = express();
 const server = http.createServer(app);
@@ -221,6 +222,24 @@ const runSpawn = (cmd, args, jobId, imageId) => new Promise((resolve, reject) =>
 app.get('/api/settings', (req, res) => res.json(settings));
 app.post('/api/settings', (req, res) => { settings = {...settings, ...req.body}; saveSettings(); res.json({success:true}); });
 
+// Generic App Data Storage (for UI Settings, Prompts, etc.)
+const APP_DATA_FILE = path.join(__dirname, 'app_data.json');
+let appData = {};
+if (fs.existsSync(APP_DATA_FILE)) {
+  try { appData = JSON.parse(fs.readFileSync(APP_DATA_FILE, 'utf8')); } catch(e) {}
+}
+const saveAppData = () => fs.writeFileSync(APP_DATA_FILE, JSON.stringify(appData, null, 2));
+
+app.get('/api/app-data/:key', (req, res) => {
+  res.json({ data: appData[req.params.key] || null });
+});
+
+app.post('/api/app-data/:key', express.json(), (req, res) => {
+  appData[req.params.key] = req.body.data;
+  saveAppData();
+  res.json({ success: true });
+});
+
 // Audio Library: list files in public/audio
 app.get('/api/audio-list', (req, res) => {
   try {
@@ -277,6 +296,39 @@ app.post('/api/process', upload.fields([{name:'video'},{name:'audio'}]), async (
 });
 
 app.get('/api/queue', (req, res) => res.json({ queued:queue.length, active:activeJobs, parallelLimit:settings.parallelLimit }));
+
+// System Stats API for Dashboard
+app.get('/api/system-stats', async (req, res) => {
+  try {
+    const cpu = await si.currentLoad();
+    const mem = await si.mem();
+    const net = await si.networkStats();
+    
+    // Aggregate network stats across all interfaces
+    let rx_sec = 0;
+    let tx_sec = 0;
+    if (net && net.length > 0) {
+        net.forEach(iface => {
+            rx_sec += iface.rx_sec || 0; // bytes/sec
+            tx_sec += iface.tx_sec || 0; // bytes/sec
+        });
+    }
+
+    res.json({
+      cpu: cpu.currentLoad, // percentage
+      memory: {
+        used: mem.active, // bytes
+        total: mem.total  // bytes
+      },
+      network: {
+        rx_sec: rx_sec, // Download (bytes/s)
+        tx_sec: tx_sec  // Upload (bytes/s)
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // Storage Management APIs
 app.get('/api/uploads', (req, res) => {
