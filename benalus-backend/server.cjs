@@ -211,9 +211,16 @@ const runFfmpegJob = async (job) => {
 
 const runSpawn = (cmd, args, jobId, imageId) => new Promise((resolve, reject) => {
   const proc = spawn(cmd, args);
+  let lastEmit = 0;
   proc.stderr.on('data', d => {
     const s = d.toString();
-    if (s.includes('time=')) emit(jobId, imageId, { log: s.trim() });
+    if (s.includes('time=')) {
+      const now = Date.now();
+      if (now - lastEmit > 1000) {
+        emit(jobId, imageId, { log: s.trim() });
+        lastEmit = now;
+      }
+    }
   });
   proc.on('close', code => code === 0 ? resolve() : reject(new Error(`FFmpeg exit code ${code}`)));
 });
