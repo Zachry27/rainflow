@@ -144,7 +144,7 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
 
                                         return (
                                             <div className="status-item status-item--done" key={img.id}>
-                                                <img className="status-item__thumb" src={img.preview} alt={name} />
+                                                <img className="status-item__thumb" src={img.preview} alt={name} decoding="async" loading="lazy" />
                                             <div className="status-item__info">
                                                 <p className="status-item__name">{name}.mp4</p>
                                                 <p className="status-item__detail" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

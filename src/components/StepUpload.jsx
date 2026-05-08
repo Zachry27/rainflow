@@ -211,7 +211,7 @@ export default function StepUpload({ images, onImagesChange, settings, onUpdateS
                         <div className="image-grid" id="image-grid">
                             {images.map((img, index) => (
                                 <div className="image-card" key={img.id}>
-                                    <img className="image-card__img" src={img.preview} alt={img.name} />
+                                    <img className="image-card__img" src={img.preview} alt={img.name} decoding="async" loading="lazy" />
                                     {img.fromDrive && (
                                         <span style={{
                                             position: 'absolute', top: 4, left: 4,

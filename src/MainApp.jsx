@@ -233,6 +233,11 @@ export default function MainApp() {
             )}
 
             {/* ── Main Content ── */}
+            <React.Profiler id="MainContent" onRender={(id, phase, actualDuration) => {
+                if (actualDuration > 50) {
+                    console.log(`[PROFILER] ${id} - ${phase} took ${actualDuration.toFixed(2)}ms`);
+                }
+            }}>
             <main className="main-content" id="main-content">
 
                 {/* Drive status chip — mobile only */}
@@ -321,6 +326,7 @@ export default function MainApp() {
                     </p>
                 </footer>
             </main>
+            </React.Profiler>
 
             {/* ── Bottom Tab Bar (mobile) ── */}
             <BottomTabBar

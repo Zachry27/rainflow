@@ -322,7 +322,7 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
                     <div className="status-list" id="generation-status-list">
                         {images.map((img, index) => (
                             <div className={`status-item status-item--${img.status}`} key={img.id}>
-                                <img className="status-item__thumb" src={img.preview} alt={img.name} />
+                                <img className="status-item__thumb" src={img.preview} alt={img.name} decoding="async" loading="lazy" />
                                 <div className="status-item__info">
                                     <p className="status-item__name">{outputNames[index] || img.name}</p>
                                     <p className="status-item__detail" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
