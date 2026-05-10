@@ -808,7 +808,19 @@ class GrokImagineClient:
 
                 last_error = result
                 error_code = result.get("error_code", "")
-                if error_code in ["rate_limit_exceeded", "unauthorized"]:
+                if error_code == "rate_limit_exceeded":
+                    if sso:
+                        return result
+                    wait_seconds = min(20, 5 * (attempt + 1))
+                    jitter = random.uniform(0.2, 1.0)
+                    logger.warning(
+                        f"[Grok-Video] Rate limit di percobaan {attempt + 1}/{max_retries}, "
+                        f"retry setelah {wait_seconds + jitter:.1f}s"
+                    )
+                    await asyncio.sleep(wait_seconds + jitter)
+                    continue
+
+                if error_code == "unauthorized":
                     await sso_manager.mark_failed(current_sso, result.get("error", ""))
                     if sso:
                         return result

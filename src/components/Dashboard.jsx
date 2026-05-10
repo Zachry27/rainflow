@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { Server, Activity, HardDrive, Wifi, Image as ImageIcon, Video, RefreshCw, UploadCloud, FolderOpen, Settings, Clock, Inbox, Cpu } from 'lucide-react'
+import { Server, Activity, Image as ImageIcon, Video, RefreshCw, UploadCloud, FolderOpen, Settings, Clock, Inbox, Cpu, RotateCcw } from 'lucide-react'
 
-export default function Dashboard({ images, completedSteps, driveStatus, onStepChange, onOpenSettings, onOpenStorage }) {
+export default function Dashboard({ images, completedSteps, driveStatus, onStepChange, onOpenSettings, onOpenStorage, onResetWorkflow }) {
     const [backendStatus, setBackendStatus] = useState({ benalus: 'checking', python: 'checking' })
     const [uploadHistory, setUploadHistory] = useState([])
 
@@ -19,18 +19,20 @@ export default function Dashboard({ images, completedSteps, driveStatus, onStepC
             setUploadHistory(saved)
         } catch (e) {}
 
-        // Check backend statuses
-        const checkBenAlus = fetch('/api/settings', { method: 'GET' })
-            .then(r => r.ok ? 'online' : 'offline')
-            .catch(() => 'offline')
+        const checkBackends = async () => {
+            const checkBenAlus = fetch('/api/settings', { method: 'GET' })
+                .then(r => r.ok ? 'online' : 'offline')
+                .catch(() => 'offline')
 
-        const checkPython = fetch('/v1/health')
-            .then(r => r.ok ? 'online' : 'offline')
-            .catch(() => 'offline')
+            const checkPython = fetch('/v1/health')
+                .then(r => r.ok ? 'online' : 'offline')
+                .catch(() => 'offline')
 
-        Promise.all([checkBenAlus, checkPython]).then(([benalus, python]) => {
+            const [benalus, python] = await Promise.all([checkBenAlus, checkPython])
             setBackendStatus({ benalus, python })
-        })
+        }
+
+        checkBackends()
 
         // Fetch System Stats periodically
         const fetchStats = async () => {
@@ -44,7 +46,10 @@ export default function Dashboard({ images, completedSteps, driveStatus, onStepC
         }
         
         fetchStats()
-        const statInterval = setInterval(fetchStats, 3000)
+        const statInterval = setInterval(() => {
+            fetchStats()
+            checkBackends()
+        }, 3000)
 
         return () => clearInterval(statInterval)
     }, [])
@@ -159,6 +164,9 @@ export default function Dashboard({ images, completedSteps, driveStatus, onStepC
                         </button>
                         <button className="btn btn--outline btn--sm" onClick={onOpenSettings} style={{ justifyContent: 'flex-start', gap: 8 }}>
                             <Settings size={16} /> Pengaturan
+                        </button>
+                        <button className="btn btn--danger btn--sm" onClick={onResetWorkflow} style={{ justifyContent: 'flex-start', gap: 8 }}>
+                            <RotateCcw size={16} /> Reset & Mulai Step 1
                         </button>
                     </div>
                 </div>

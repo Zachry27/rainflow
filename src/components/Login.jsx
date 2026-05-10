@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -7,22 +7,32 @@ export default function Login() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const { login, register } = useAuth();
+    const [submitting, setSubmitting] = useState(false);
+    const { login, register, user } = useAuth();
     const navigate = useNavigate();
+
+    useEffect(() => {
+        if (user) navigate('/', { replace: true });
+    }, [user, navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (submitting) return;
+
         setError('');
+        setSubmitting(true);
         
-        const success = isLogin 
+        const result = isLogin
             ? await login(username, password)
             : await register(username, password);
             
-        if (success) {
-            navigate('/');
+        if (result.success) {
+            navigate('/', { replace: true });
         } else {
-            setError(isLogin ? 'Login failed. Check credentials.' : 'Registration failed. Username might be taken.');
+            setError(result.error || (isLogin ? 'Login gagal.' : 'Registrasi gagal.'));
         }
+
+        setSubmitting(false);
     };
 
     return (
@@ -58,8 +68,13 @@ export default function Login() {
                             required 
                         />
                     </div>
-                    <button type="submit" className="btn btn--primary btn--full" style={{ marginTop: '10px' }}>
-                        {isLogin ? 'Sign In' : 'Sign Up'}
+                    <button
+                        type="submit"
+                        className="btn btn--primary btn--full"
+                        disabled={submitting}
+                        style={{ marginTop: '10px' }}
+                    >
+                        {submitting ? 'Loading...' : isLogin ? 'Sign In' : 'Sign Up'}
                     </button>
                 </form>
                 

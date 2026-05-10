@@ -19,8 +19,6 @@ export default function Sidebar({
     isOpen,
     isCollapsed,
     onToggleCollapse,
-    onOpenSettings,
-    onOpenStorage,
 }) {
     const navigate = useNavigate()
     const { user } = useAuth()
@@ -79,15 +77,22 @@ export default function Sidebar({
                         id="storage"
                         icon={<HardDrive size={18} />}
                         label="Storage & Riwayat"
-                        onClick={onOpenStorage}
-                        isActive={false}
+                        onClick={() => onStepChange('storage')}
+                        isActive={activeStep === 'storage'}
                     />
                     <NavItem
                         id="settings"
                         icon={<Settings size={18} />}
                         label="Pengaturan"
-                        onClick={onOpenSettings}
-                        isActive={false}
+                        onClick={() => onStepChange('settings')}
+                        isActive={activeStep === 'settings'}
+                    />
+                    <NavItem
+                        id="logs"
+                        icon={<Activity size={18} />}
+                        label="Log Aktivitas"
+                        onClick={() => onStepChange('logs')}
+                        isActive={activeStep === 'logs'}
                     />
                 </nav>
             </div>

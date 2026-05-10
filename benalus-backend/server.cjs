@@ -101,6 +101,7 @@ const saveSettings = () => fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settin
 // Queue
 const queue = [];
 let activeJobs = 0;
+const jobSnapshots = new Map();
 
 const processQueue = () => {
   if (queue.length === 0 || activeJobs >= settings.parallelLimit) return;
@@ -116,7 +117,29 @@ const getDuration = (filePath) => new Promise((resolve) => {
   p.on('close', () => resolve(parseFloat(out.trim()) || 0));
 });
 
-const emit = (id, imageId, payload) => io.emit('job_status', { id, imageId, ...payload });
+const rememberJob = (id, imageId, payload) => {
+  const prev = jobSnapshots.get(id) || { id, imageId };
+  const next = {
+    ...prev,
+    imageId,
+    ...payload,
+    id,
+    updatedAt: new Date().toISOString(),
+  };
+  jobSnapshots.set(id, next);
+
+  if (jobSnapshots.size > 200) {
+    const oldestKey = jobSnapshots.keys().next().value;
+    if (oldestKey) jobSnapshots.delete(oldestKey);
+  }
+
+  return next;
+};
+
+const emit = (id, imageId, payload) => {
+  const snapshot = rememberJob(id, imageId, payload);
+  io.emit('job_status', snapshot);
+};
 
 const runFfmpegJob = async (job) => {
   const { id, imageId, videoFile, audioFile, audioName, opts } = job;
@@ -274,6 +297,7 @@ app.post('/api/process', upload.fields([{name:'video'},{name:'audio'}]), async (
 
   const jobId   = Date.now().toString() + Math.random().toString().slice(2, 6);
   const imageId = req.body.imageId || null;
+  emit(jobId, imageId, { status: 'queued', progress: 0, log: 'Masuk antrean BenAlus...' });
 
   // Download video from URL if provided instead of file
   if (!videoFile && videoUrl) {
@@ -319,6 +343,12 @@ app.post('/api/process', upload.fields([{name:'video'},{name:'audio'}]), async (
 });
 
 app.get('/api/queue', (req, res) => res.json({ queued:queue.length, active:activeJobs, parallelLimit:settings.parallelLimit }));
+
+app.get('/api/jobs', (req, res) => {
+  const jobs = Array.from(jobSnapshots.values())
+    .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+  res.json({ jobs });
+});
 
 // System Stats API for Dashboard
 app.get('/api/system-stats', async (req, res) => {

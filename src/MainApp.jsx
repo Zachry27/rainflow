@@ -1,27 +1,37 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import Topbar from './components/Topbar'
 import Sidebar from './components/Sidebar'
 import BottomTabBar from './components/BottomTabBar'
 import PipelineStepper from './components/PipelineStepper'
-import SettingsSheet from './components/SettingsSheet'
 import GoogleDrive from './components/GoogleDrive'
 import StepUpload from './components/StepUpload'
 import StepGenerate from './components/StepGenerate'
 import StepProcess from './components/StepProcess'
 import StepExport from './components/StepExport'
-import StorageManager from './components/StorageManager'
 import Dashboard from './components/Dashboard'
 import InstallPrompt from './components/InstallPrompt'
+import SettingsPage from './components/SettingsPage'
+import StoragePage from './components/StoragePage'
+import ActivityLogs from './components/ActivityLogs'
+import { pushActivityLog } from './utils/activityLog'
+import { clearWorkflowDraft, loadWorkflowDraft, persistWorkflowDraft, readWorkflowDraftMeta } from './utils/workflowDraft'
+
+const EMPTY_COMPLETED_STEPS = {
+    upload: false,
+    generate: false,
+    process: false,
+    export: false,
+}
 
 export default function MainApp() {
-    const [activeStep, setActiveStep] = useState('dashboard')
+    const bootDraftRef = useRef(readWorkflowDraftMeta())
+    const bootDraft = bootDraftRef.current
+    const [activeStep, setActiveStep] = useState(() => bootDraft?.activeStep || 'dashboard')
     const [images, setImages] = useState([])
     const [driveToken, setDriveToken] = useState(null)
     const [driveUser, setDriveUser] = useState(null)   // { name, email }
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-    const [isStorageOpen, setIsStorageOpen] = useState(false)
     const [manualVideos, setManualVideos] = useState([])
     const [toastMessage, setToastMessage] = useState(null)
 
@@ -54,21 +64,28 @@ export default function MainApp() {
         }
         try {
             const saved = localStorage.getItem('rainflowMainSettings')
-            if (saved) return { ...defaultSettings, ...JSON.parse(saved) }
+            const savedSettings = saved ? JSON.parse(saved) : {}
+            const draftSettings = bootDraft?.settings || {}
+            return { ...defaultSettings, ...savedSettings, ...draftSettings }
         } catch (e) {}
         return defaultSettings
     })
 
-    const [completedSteps, setCompletedSteps] = useState({
-        upload: false, generate: false, process: false, export: false,
-    })
+    const [completedSteps, setCompletedSteps] = useState(() => ({
+        ...EMPTY_COMPLETED_STEPS,
+        ...(bootDraft?.completedSteps || {}),
+    }))
+    const [draftHydrated, setDraftHydrated] = useState(false)
+    const saveDraftTimerRef = useRef(null)
 
     const showToast = useCallback((msg, isError = false) => {
         setToastMessage({ text: msg, isError })
         setTimeout(() => setToastMessage(null), 3500)
     }, [])
 
-    React.useEffect(() => {
+    useEffect(() => {
+        if (bootDraftRef.current) return
+
         fetch('/api/app-data/settings')
             .then(res => res.json())
             .then(res => {
@@ -79,6 +96,60 @@ export default function MainApp() {
             .catch(err => console.error('Failed to load settings from server', err))
     }, [])
 
+    useEffect(() => {
+        let mounted = true
+
+        loadWorkflowDraft()
+            .then(draft => {
+                if (!mounted) return
+                if (!draft) return
+
+                setImages(draft.images || [])
+                setCompletedSteps({
+                    ...EMPTY_COMPLETED_STEPS,
+                    ...(draft.completedSteps || {}),
+                })
+                if (draft.settings) {
+                    setSettings(prev => ({ ...prev, ...draft.settings }))
+                }
+                setActiveStep(draft.activeStep || 'dashboard')
+
+                if ((draft.images || []).length > 0) {
+                    showToast('Pekerjaan sebelumnya dipulihkan.')
+                    pushActivityLog('workflow', 'Pekerjaan dipulihkan setelah refresh')
+                }
+            })
+            .catch(err => console.warn('Failed to restore workflow draft', err))
+            .finally(() => {
+                if (mounted) setDraftHydrated(true)
+            })
+
+        return () => {
+            mounted = false
+        }
+    }, [showToast])
+
+    useEffect(() => {
+        if (!draftHydrated) return
+
+        if (saveDraftTimerRef.current) {
+            clearTimeout(saveDraftTimerRef.current)
+        }
+
+        saveDraftTimerRef.current = setTimeout(() => {
+            persistWorkflowDraft({
+                activeStep,
+                images,
+                completedSteps,
+                settings,
+            }).catch(err => console.warn('Failed to persist workflow draft', err))
+        }, 600)
+
+        return () => {
+            if (saveDraftTimerRef.current) clearTimeout(saveDraftTimerRef.current)
+        }
+    }, [activeStep, images, completedSteps, settings, draftHydrated])
+
     const saveSettingsToDefault = useCallback(() => {
         try {
             localStorage.setItem('rainflowMainSettings', JSON.stringify(settings))
@@ -88,25 +159,37 @@ export default function MainApp() {
                 body: JSON.stringify({ data: settings })
             }).catch(() => {})
             showToast('✅ Pengaturan berhasil disimpan ke Server!')
+            pushActivityLog('settings', 'Pengaturan disimpan')
         } catch (e) {
             showToast('Gagal menyimpan: ' + e.message, true)
         }
     }, [settings, showToast])
 
     const markStepDone = useCallback((step) => {
-        setCompletedSteps(prev => ({ ...prev, [step]: true }))
+        setCompletedSteps(prev => (prev[step] ? prev : { ...prev, [step]: true }))
     }, [])
 
+    const handleGenerateComplete = useCallback(() => {
+        markStepDone('generate')
+    }, [markStepDone])
+
+    const handleProcessComplete = useCallback(() => {
+        markStepDone('process')
+    }, [markStepDone])
+
     const handleImagesChange = useCallback((newImages) => {
+        if (newImages.length > images.length) {
+            pushActivityLog('upload', `Import ${newImages.length - images.length} gambar`)
+        }
         setImages(newImages)
         if (newImages.length > 0) markStepDone('upload')
-    }, [markStepDone])
+    }, [images.length, markStepDone])
 
     const updateSettings = useCallback((key, value) => {
         setSettings(prev => ({ ...prev, [key]: value }))
     }, [])
 
-    const getOutputNames = useCallback(() => {
+    const outputNames = useMemo(() => {
         const prefix = settings.namePrefix || 'vid'
         let startDate
         if (settings.startDate) {
@@ -186,11 +269,45 @@ export default function MainApp() {
             }
 
             showToast(`✅ ${outputName} → Drive berhasil & lokal dihapus!`);
+            pushActivityLog('drive', `Auto-upload berhasil ${outputName}.mp4`);
         } catch (err) {
             console.error('Auto upload error:', err);
             showToast(`Gagal auto-upload ${outputName}: ${err.message}`, true);
+            pushActivityLog('drive', `Auto-upload gagal ${outputName}.mp4: ${err.message}`);
         }
     }, [settings.autoUploadAndDelete, driveToken, showToast]);
+
+    const navigateStep = useCallback((step) => {
+        setActiveStep(step)
+        setIsSidebarOpen(false)
+        pushActivityLog('nav', `Buka halaman ${step}`)
+    }, [])
+
+    const handleResetWorkflow = useCallback(async () => {
+        const confirmed = window.confirm('Reset pekerjaan aktif dan kembali ke Step 1? Riwayat upload Drive tetap disimpan.')
+        if (!confirmed) return
+
+        images.forEach(img => {
+            if (img.preview?.startsWith('blob:')) {
+                URL.revokeObjectURL(img.preview)
+            }
+        })
+
+        if (saveDraftTimerRef.current) {
+            clearTimeout(saveDraftTimerRef.current)
+        }
+
+        await clearWorkflowDraft()
+        setImages([])
+        setManualVideos([])
+        setCompletedSteps({ ...EMPTY_COMPLETED_STEPS })
+        setActiveStep('upload')
+        setIsSidebarOpen(false)
+        showToast('Pekerjaan direset. Mulai lagi dari Step 1.')
+        pushActivityLog('workflow', 'Reset pekerjaan aktif dan mulai dari Step 1')
+    }, [images, showToast])
+
+    const isPipelineStep = ['upload', 'generate', 'process', 'export'].includes(activeStep)
 
     return (
         <div className={`app-layout ${isSidebarCollapsed ? 'app-layout--collapsed' : ''} ${isSidebarOpen ? 'app-layout--sidebar-open' : ''}`}>
@@ -207,20 +324,19 @@ export default function MainApp() {
                 onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)}
                 activeStep={activeStep}
                 isSidebarOpen={isSidebarOpen}
+                onResetWorkflow={handleResetWorkflow}
             />
 
             {/* ── Sidebar (desktop) ── */}
             <Sidebar
                 activeStep={activeStep}
-                onStepChange={(step) => { setActiveStep(step); setIsSidebarOpen(false) }}
+                onStepChange={navigateStep}
                 completedSteps={completedSteps}
                 imageCount={images.length}
                 driveStatus={driveStatus}
                 isOpen={isSidebarOpen}
                 isCollapsed={isSidebarCollapsed}
                 onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                onOpenSettings={() => { setIsSettingsOpen(true); setIsSidebarOpen(false) }}
-                onOpenStorage={() => { setIsStorageOpen(true); setIsSidebarOpen(false) }}
             />
 
             {/* ── Mobile overlay backdrop ── */}
@@ -246,11 +362,11 @@ export default function MainApp() {
                 </div>
 
                 {/* Pipeline Stepper — hanya tampil saat di step pipeline */}
-                {activeStep !== 'dashboard' && (
+                {isPipelineStep && (
                     <PipelineStepper
                         activeStep={activeStep}
                         completedSteps={completedSteps}
-                        onStepChange={setActiveStep}
+                        onStepChange={navigateStep}
                     />
                 )}
 
@@ -260,9 +376,10 @@ export default function MainApp() {
                         images={images}
                         completedSteps={completedSteps}
                         driveStatus={driveStatus}
-                        onStepChange={setActiveStep}
-                        onOpenSettings={() => setIsSettingsOpen(true)}
-                        onOpenStorage={() => setIsStorageOpen(true)}
+                        onStepChange={navigateStep}
+                        onOpenSettings={() => navigateStep('settings')}
+                        onOpenStorage={() => navigateStep('storage')}
+                        onResetWorkflow={handleResetWorkflow}
                     />
                 )}
 
@@ -273,7 +390,7 @@ export default function MainApp() {
                         onImagesChange={handleImagesChange}
                         settings={settings}
                         onUpdateSettings={updateSettings}
-                        outputNames={getOutputNames()}
+                        outputNames={outputNames}
                         driveAccessToken={driveToken}
                         isActive={activeStep === 'upload'}
                     />
@@ -285,8 +402,8 @@ export default function MainApp() {
                         onImagesChange={setImages}
                         settings={settings}
                         onUpdateSettings={updateSettings}
-                        outputNames={getOutputNames()}
-                        onComplete={() => markStepDone('generate')}
+                        outputNames={outputNames}
+                        onComplete={handleGenerateComplete}
                         isActive={activeStep === 'generate'}
                     />
                 </div>
@@ -297,8 +414,8 @@ export default function MainApp() {
                         onImagesChange={setImages}
                         settings={settings}
                         onUpdateSettings={updateSettings}
-                        outputNames={getOutputNames()}
-                        onComplete={() => markStepDone('process')}
+                        outputNames={outputNames}
+                        onComplete={handleProcessComplete}
                         manualVideos={manualVideos}
                         onManualVideosChange={setManualVideos}
                         driveAccessToken={driveToken}
@@ -311,13 +428,31 @@ export default function MainApp() {
                     <StepExport
                         images={images}
                         settings={settings}
-                        outputNames={getOutputNames()}
+                        outputNames={outputNames}
                         driveToken={driveToken}
                         apiUrl={settings.apiUrl}
                         apiKey={settings.apiKey}
                         isActive={activeStep === 'export'}
                     />
                 </div>
+
+                {activeStep === 'storage' && (
+                    <StoragePage />
+                )}
+
+                {activeStep === 'settings' && (
+                    <SettingsPage
+                        settings={settings}
+                        onUpdateSettings={updateSettings}
+                        onSaveSettings={saveSettingsToDefault}
+                        setDriveToken={setDriveToken}
+                        setDriveUser={setDriveUser}
+                    />
+                )}
+
+                {activeStep === 'logs' && (
+                    <ActivityLogs />
+                )}
 
                 {/* Footer */}
                 <footer className="footer">
@@ -331,26 +466,11 @@ export default function MainApp() {
             {/* ── Bottom Tab Bar (mobile) ── */}
             <BottomTabBar
                 activeStep={activeStep}
-                onStepChange={setActiveStep}
+                onStepChange={navigateStep}
                 completedSteps={completedSteps}
             />
 
-            {/* ── Settings Bottom Sheet ── */}
-            <SettingsSheet
-                isOpen={isSettingsOpen}
-                onClose={() => setIsSettingsOpen(false)}
-                settings={settings}
-                onUpdateSettings={updateSettings}
-                onSaveSettings={saveSettingsToDefault}
-                setDriveToken={setDriveToken}
-                setDriveUser={setDriveUser}
-            />
 
-            {/* ── Storage Manager Sheet ── */}
-            <StorageManager
-                isOpen={isStorageOpen}
-                onClose={() => setIsStorageOpen(false)}
-            />
 
             {/* ── PWA Install Prompt ── */}
             <InstallPrompt />

@@ -34,11 +34,17 @@ export default function StepUpload({ images, onImagesChange, settings, onUpdateS
     const handleDragLeave = useCallback(() => setDragging(false), [])
 
     const removeImage = useCallback((id) => {
+        const removed = images.find(img => img.id === id)
+        if (removed?.preview?.startsWith('blob:')) {
+            URL.revokeObjectURL(removed.preview)
+        }
         onImagesChange(images.filter(img => img.id !== id))
     }, [images, onImagesChange])
 
     const clearAll = useCallback(() => {
-        images.forEach(img => URL.revokeObjectURL(img.preview))
+        images.forEach(img => {
+            if (img.preview?.startsWith('blob:')) URL.revokeObjectURL(img.preview)
+        })
         onImagesChange([])
     }, [images, onImagesChange])
 

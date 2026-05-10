@@ -23,6 +23,8 @@ desktop.ini
 *.log
 sso_state.json
 key.txt
+perf_test.js
+benalus-backend/app_data.json
 
 # Binary executables (jangan di-commit, download manual)
 *.exe

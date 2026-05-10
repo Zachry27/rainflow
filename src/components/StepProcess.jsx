@@ -25,11 +25,38 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
   const [isProcessing, setIsProcessing] = useState(false);
   const [backendStatus, setBackendStatus] = useState('unknown'); // 'online' | 'offline' | 'unknown'
 
+  const mergeJobs = React.useCallback((incomingJobs) => {
+    setJobs(prev => {
+      const map = new Map(prev.map(job => [job.id, job]));
+      (incomingJobs || []).forEach(job => {
+        if (!job?.id) return;
+        map.set(job.id, { ...(map.get(job.id) || {}), ...job });
+      });
+      return Array.from(map.values()).sort((a, b) =>
+        String(b.updatedAt || b.id || '').localeCompare(String(a.updatedAt || a.id || ''))
+      );
+    });
+  }, []);
+
   // Video dari Step 2 yg sudah selesai generate
   const readyImages = (images || []).filter(img => img.status === 'done' && img.videoUrl);
 
+  useEffect(() => {
+    if (!isActive) return;
+
+    const imageIds = new Set((images || []).map(img => img.id));
+    fetch('/api/jobs')
+      .then(res => res.ok ? res.json() : { jobs: [] })
+      .then(data => {
+        const restoredJobs = (data.jobs || []).filter(job => job.imageId && imageIds.has(job.imageId));
+        if (restoredJobs.length > 0) mergeJobs(restoredJobs);
+      })
+      .catch(() => {});
+  }, [images, isActive, mergeJobs]);
+
   // ─── Socket.IO + Settings load ───
   useEffect(() => {
+    if (!isActive) return;
 
     // Ambil daftar audio dari library
     fetch('/api/audio-list')
@@ -46,16 +73,12 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
       socket.on('disconnect', () => setBackendStatus('offline'));
 
       socket.on('job_status', (data) => {
-        setJobs(prev => {
-          const existing = prev.find(j => j.id === data.id);
-          if (existing) return prev.map(j => j.id === data.id ? { ...j, ...data } : j);
-          return [{ ...data }, ...prev];
-        });
+        mergeJobs([data]);
       });
     }).catch(err => console.error("Gagal load socket.io", err));
 
     return () => { if (socket) socket.disconnect(); };
-  }, [backendUrl]);
+  }, [backendUrl, isActive, mergeJobs]);
 
   // Track which jobs have already triggered onJobCompleted to avoid duplicates
   const processedJobsRef = useRef(new Set());
@@ -182,6 +205,8 @@ export default function StepProcess({ images, onImagesChange, outputNames, onCom
   const canStart = backendStatus === 'online' && !isProcessing;
   // URL untuk download hasil — pakai relatif via proxy
   const downloadBase = '';
+
+  if (!isActive) return null;
 
   // ─── UI ───
   return (

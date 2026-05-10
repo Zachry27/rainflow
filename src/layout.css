@@ -50,6 +50,12 @@
 .topbar__left { display: flex; align-items: center; gap: 10px; }
 .topbar__center { flex: 1; display: flex; justify-content: center; }
 .topbar__right { display: flex; align-items: center; gap: 8px; }
+.topbar__reset-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
 
 .topbar__menu-btn {
     display: none;
@@ -491,4 +497,5 @@
     .topbar__username { display: none; }
     .topbar__chevron { display: none; }
     .topbar__logo-badge { display: none; }
+    .topbar__reset-btn span { display: none; }
 }

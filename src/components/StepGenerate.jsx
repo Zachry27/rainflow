@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef } from 'react'
 import { Sparkles, Bot, Image as ImageIcon, Rocket, RefreshCw, Square, CheckCircle, XCircle, Clock } from 'lucide-react'
 import PromptPresets from './PromptPresets'
 
-// Promise pool — execute `tasks` with max `concurrency` at a time
+// Promise pool - execute `tasks` with max `concurrency` at a time
 async function runPool(tasks, concurrency, onProgress) {
     const results = []
     let nextIndex = 0
@@ -34,6 +34,7 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
     const [generating, setGenerating] = useState(false)
     const [apiStatus, setApiStatus] = useState('checking') // 'checking', 'connected', 'error'
     const abortRef = useRef(false)
+    const controllersRef = useRef(new Set())
 
     const totalImages = images.length
     const doneCount = images.filter(img => img.status === 'done').length
@@ -61,34 +62,61 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
         try {
             let imageDataUrl = null
             try {
-                imageDataUrl = await fileToDataUrl(img.file)
+                if (img.file instanceof Blob && img.file.size > 0) {
+                    imageDataUrl = await fileToDataUrl(img.file)
+                } else if (typeof img.preview === 'string' && img.preview.startsWith('data:image')) {
+                    imageDataUrl = img.preview
+                } else {
+                    throw new Error('File gambar tidak tersedia setelah refresh. Import ulang gambar ini.')
+                }
             } catch (e) {
-                throw new Error('Gagal membaca file gambar')
+                throw new Error(e.message || 'Gagal membaca file gambar')
             }
 
             const apiUrl = settings.apiUrl.replace(/\/$/, '')
-            const response = await fetch(`${apiUrl}/v1/videos/generations`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${settings.apiKey}`,
-                },
-                body: JSON.stringify({
-                    prompt: settings.prompt,
-                    model: 'grok-2-video',
-                    aspect_ratio: settings.aspectRatio,
-                    duration_seconds: settings.duration,
-                    resolution: settings.resolution,
-                    preset: settings.preset,
-                    image: imageDataUrl,
-                    output_filename: outputName,
-                }),
-                signal: AbortSignal.timeout(settings.duration === 10 ? 300000 : 240000), // 4-5 min timeout
-            })
+            const controller = new AbortController()
+            const timeoutMs = settings.duration === 10 ? 300000 : 240000
+            const timeoutId = setTimeout(() => controller.abort(new DOMException('Timeout', 'TimeoutError')), timeoutMs)
+            controllersRef.current.add(controller)
+
+            let response
+            try {
+                response = await fetch(`${apiUrl}/v1/videos/generations`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${settings.apiKey}`,
+                    },
+                    body: JSON.stringify({
+                        prompt: settings.prompt,
+                        model: 'grok-2-video',
+                        aspect_ratio: settings.aspectRatio,
+                        duration_seconds: settings.duration,
+                        resolution: settings.resolution,
+                        preset: settings.preset,
+                        image: imageDataUrl,
+                        output_filename: outputName,
+                    }),
+                    signal: controller.signal,
+                })
+            } finally {
+                clearTimeout(timeoutId)
+                controllersRef.current.delete(controller)
+            }
 
             if (!response.ok) {
                 const errorText = await response.text().catch(() => 'Unknown error')
-                throw new Error(`HTTP ${response.status}: ${errorText.slice(0, 200)}`)
+                let serverMessage = errorText
+                try {
+                    const parsed = JSON.parse(errorText)
+                    serverMessage = parsed?.detail || parsed?.error || errorText
+                } catch (e) {}
+
+                if (response.status === 429) {
+                    throw new Error('Rate limit Grok (429): tunggu 1-3 menit, set Workers ke 1, lalu Retry.')
+                }
+
+                throw new Error(`HTTP ${response.status}: ${String(serverMessage).slice(0, 200)}`)
             }
 
             const result = await response.json()
@@ -100,7 +128,10 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
 
             return { success: true, videoUrl }
         } catch (err) {
-            const errMsg = err.name === 'TimeoutError' ? 'Timeout — coba lagi' : err.message
+            if (err.name === 'AbortError' && abortRef.current) {
+                return { success: false, error: 'Dibatalkan' }
+            }
+            const errMsg = err.name === 'TimeoutError' ? 'Timeout - coba lagi' : err.message
             onImagesChange(prev => prev.map(m =>
                 m.id === img.id ? { ...m, status: 'error', error: errMsg } : m
             ))
@@ -132,6 +163,8 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
 
     const stopGeneration = useCallback(() => {
         abortRef.current = true
+        controllersRef.current.forEach(controller => controller.abort())
+        controllersRef.current.clear()
         // Reset generating items back to pending
         onImagesChange(prev => prev.map(img =>
             img.status === 'generating' ? { ...img, status: 'pending', error: null } : img
@@ -245,9 +278,9 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
                 </div>
 
                 <div className="gen-config" style={{ display: 'flex', gap: 12, fontSize: '0.85rem', color: 'var(--text-dim)', padding: '12px', background: 'var(--bg-lighter)', borderRadius: 8, marginTop: 12 }}>
-                    <span>📐 {settings.aspectRatio || '16:9'}</span>
-                    <span>⏱️ {settings.duration || 6}s</span>
-                    <span>⚡ {settings.workers || 3} Workers</span>
+                    <span>AR {settings.aspectRatio || '16:9'}</span>
+                    <span>Duration {settings.duration || 6}s</span>
+                    <span>Workers {settings.workers || 3}</span>
                     <span style={{ marginLeft: 'auto', fontStyle: 'italic', opacity: 0.7 }}>(Ubah di Pengaturan)</span>
                 </div>
             </div>
@@ -256,7 +289,7 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
             <div className="card">
                 <h3 className="card__title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Bot size={20} className="card__title-icon" style={{ color: 'var(--accent)' }} />
-                    Step 2 — Generate Video dari Gambar
+                    Step 2 - Generate Video dari Gambar
                 </h3>
 
                 {/* Stats */}
@@ -285,9 +318,9 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
                 </div>
                 <p className="progress-text">
                     {generating
-                        ? `⚡ Generating ${generatingCount} video secara paralel (${workers} workers)...`
+                        ? `Generating ${generatingCount} video secara paralel (${workers} workers)...`
                         : allDone
-                            ? '✅ Semua video berhasil di-generate!'
+                            ? 'Semua video berhasil di-generate!'
                             : `${doneCount}/${totalImages} selesai`}
                 </p>
 
@@ -334,8 +367,8 @@ export default function StepGenerate({ images, onImagesChange, settings, onUpdat
                                 </div>
                                 <span className={`status-item__badge status-item__badge--${img.status}`}>
                                     {img.status === 'generating' && <><span className="spinner" style={{ marginRight: 4 }} />Gen...</>}
-                                    {img.status === 'done' && '✓ Done'}
-                                    {img.status === 'error' && '✕ Error'}
+                                    {img.status === 'done' && 'Done'}
+                                    {img.status === 'error' && 'Error'}
                                     {img.status === 'pending' && 'Wait'}
                                 </span>
                             </div>

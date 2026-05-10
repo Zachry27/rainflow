@@ -1,11 +1,63 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import { Package, FolderOpen, Calendar, CheckSquare, Cloud, Check, Clock, AlertCircle, Sparkles, X, CheckCircle, UploadCloud } from 'lucide-react'
+import { pushActivityLog } from '../utils/activityLog'
 
 export default function StepExport({ images, settings, outputNames, driveToken, apiUrl, apiKey, isActive = true }) {
-    const [uploadStatus, setUploadStatus] = useState({}) // { imgId: 'uploading' | 'done' | 'error' | url }
+    const [uploadStatus, setUploadStatus] = useState({}) // { imgId: { state, progress, url, error } }
+    const [uploadHistory, setUploadHistory] = useState([])
 
     const doneVideos = images.filter(img => img.status === 'done')
     const totalImages = images.length
+
+    const loadUploadHistory = useCallback(() => {
+        try {
+            const parsed = JSON.parse(localStorage.getItem('rainflowUploadHistory') || '[]')
+            setUploadHistory(Array.isArray(parsed) ? parsed : [])
+        } catch (e) {
+            setUploadHistory([])
+        }
+    }, [])
+
+    useEffect(() => {
+        if (!isActive) return
+        loadUploadHistory()
+        const t = setInterval(loadUploadHistory, 2000)
+        return () => clearInterval(t)
+    }, [isActive, loadUploadHistory])
+
+    const getNameByImage = useCallback((img, fallbackIndex = 0) => {
+        const idx = images.findIndex(m => m.id === img.id)
+        return outputNames[idx] || `video_${idx >= 0 ? idx : fallbackIndex}`
+    }, [images, outputNames])
+
+    const getHistoryUrlForName = useCallback((outputName) => {
+        const target = `${outputName}.mp4`
+        const found = uploadHistory.find(h => h?.name === target)
+        return found?.url || null
+    }, [uploadHistory])
+
+    const resolvedUploadStatus = useMemo(() => {
+        const map = {}
+        doneVideos.forEach((img, i) => {
+            const local = uploadStatus[img.id]
+            if (local) {
+                map[img.id] = local
+                return
+            }
+            const name = getNameByImage(img, i)
+            const historyUrl = getHistoryUrlForName(name)
+            map[img.id] = historyUrl
+                ? { state: 'done', progress: 100, url: historyUrl }
+                : { state: 'idle', progress: 0 }
+        })
+        return map
+    }, [doneVideos, uploadStatus, getNameByImage, getHistoryUrlForName])
+
+    const uploadedCount = useMemo(
+        () => doneVideos.filter(img => resolvedUploadStatus[img.id]?.state === 'done').length,
+        [doneVideos, resolvedUploadStatus]
+    )
+    const pendingUploadCount = Math.max(0, doneVideos.length - uploadedCount)
 
     const formatDuration = (s) => {
         const h = s / 3600
@@ -21,11 +73,39 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
 
     const startDate = getStartDate()
 
+    const uploadMultipartToDrive = useCallback((formData, onProgress) => {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest()
+            xhr.open('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink')
+            xhr.setRequestHeader('Authorization', `Bearer ${driveToken}`)
+            xhr.upload.onprogress = (evt) => {
+                if (evt.lengthComputable && typeof onProgress === 'function') {
+                    const progress = Math.max(1, Math.min(100, Math.round((evt.loaded / evt.total) * 100)))
+                    onProgress(progress)
+                }
+            }
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        resolve(JSON.parse(xhr.responseText || '{}'))
+                    } catch (e) {
+                        reject(new Error('Respons Google Drive tidak valid'))
+                    }
+                    return
+                }
+                reject(new Error(`Drive upload gagal: HTTP ${xhr.status} ${(xhr.responseText || '').slice(0, 100)}`))
+            }
+            xhr.onerror = () => reject(new Error('Koneksi upload ke Google Drive gagal'))
+            xhr.send(formData)
+        })
+    }, [driveToken])
+
     // Upload satu video langsung ke Google Drive API (tanpa backend Python)
     const uploadToDrive = useCallback(async (img, outputName) => {
         if (!driveToken || !img.videoUrl) return
 
-        setUploadStatus(prev => ({ ...prev, [img.id]: 'uploading' }))
+        setUploadStatus(prev => ({ ...prev, [img.id]: { state: 'downloading', progress: 0 } }))
+        pushActivityLog('drive', `Mulai upload ${outputName}.mp4`, { imageId: img.id })
 
         try {
             // 1. Download video dari BenAlus
@@ -33,27 +113,17 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
             if (!videoRes.ok) throw new Error(`Download gagal: HTTP ${videoRes.status}`)
             const videoBlob = await videoRes.blob()
 
+            setUploadStatus(prev => ({ ...prev, [img.id]: { state: 'uploading', progress: 1 } }))
+
             // 2. Upload langsung ke Google Drive API
             const metadata = { name: `${outputName}.mp4`, mimeType: 'video/mp4' }
             const form = new FormData()
             form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))
             form.append('file', videoBlob)
 
-            const driveRes = await fetch(
-                'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
-                {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${driveToken}` },
-                    body: form,
-                }
-            )
-
-            if (!driveRes.ok) {
-                const errText = await driveRes.text().catch(() => '')
-                throw new Error(`Drive upload gagal: HTTP ${driveRes.status} ${errText.slice(0, 80)}`)
-            }
-
-            const result = await driveRes.json()
+            const result = await uploadMultipartToDrive(form, (progress) => {
+                setUploadStatus(prev => ({ ...prev, [img.id]: { state: 'uploading', progress } }))
+            })
             const driveUrl = result.webViewLink || `https://drive.google.com/file/d/${result.id}/view`
 
             // 3. Simpan ke riwayat
@@ -61,22 +131,27 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                 const history = JSON.parse(localStorage.getItem('rainflowUploadHistory') || '[]')
                 history.unshift({ name: `${outputName}.mp4`, date: new Date().toISOString(), url: driveUrl })
                 localStorage.setItem('rainflowUploadHistory', JSON.stringify(history))
+                loadUploadHistory()
             } catch (e) {}
 
-            setUploadStatus(prev => ({ ...prev, [img.id]: driveUrl }))
+            setUploadStatus(prev => ({ ...prev, [img.id]: { state: 'done', progress: 100, url: driveUrl } }))
+            pushActivityLog('drive', `Upload berhasil ${outputName}.mp4`, { imageId: img.id, url: driveUrl })
         } catch (err) {
-            setUploadStatus(prev => ({ ...prev, [img.id]: `error:${err.message}` }))
+            setUploadStatus(prev => ({ ...prev, [img.id]: { state: 'error', progress: 0, error: err.message } }))
+            pushActivityLog('drive', `Upload gagal ${outputName}.mp4: ${err.message}`, { imageId: img.id })
         }
-    }, [driveToken])
+    }, [driveToken, uploadMultipartToDrive, loadUploadHistory])
 
     // Upload all done videos to Drive
     const uploadAllToDrive = useCallback(async () => {
-        for (const img of doneVideos) {
-            const idx = images.findIndex(m => m.id === img.id)
-            const name = outputNames[idx] || `video_${idx}`
+        const pendingItems = doneVideos.filter(img => resolvedUploadStatus[img.id]?.state !== 'done')
+        for (const img of pendingItems) {
+            const name = getNameByImage(img)
             await uploadToDrive(img, name)
         }
-    }, [doneVideos, images, outputNames, uploadToDrive])
+    }, [doneVideos, resolvedUploadStatus, getNameByImage, uploadToDrive])
+
+    if (!isActive) return null
 
     return (
         <div>
@@ -126,21 +201,23 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                                     className="btn btn--primary btn--full"
                                     onClick={uploadAllToDrive}
                                     id="btn-upload-all-drive"
+                                    disabled={pendingUploadCount === 0}
                                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                                 >
-                                    <UploadCloud size={18} /> Upload Semua ke Drive ({doneVideos.length} video)
+                                    <UploadCloud size={18} /> {pendingUploadCount === 0
+                                        ? 'Semua video sudah terupload'
+                                        : `Upload Semua ke Drive (${pendingUploadCount} video sisa)`}
                                 </button>
                             </div>
 
                             {isActive && (
                                 <div className="status-list">
                                     {doneVideos.map((img, i) => {
-                                        const idx = images.findIndex(m => m.id === img.id)
-                                        const name = outputNames[idx] || `video_${i}`
-                                        const st = uploadStatus[img.id]
-                                        const isUploading = st === 'uploading'
-                                        const isDone = st && st !== 'uploading' && !String(st).startsWith('error')
-                                        const isError = String(st || '').startsWith('error')
+                                        const name = getNameByImage(img, i)
+                                        const st = resolvedUploadStatus[img.id] || { state: 'idle', progress: 0 }
+                                        const isUploading = st.state === 'uploading' || st.state === 'downloading'
+                                        const isDone = st.state === 'done'
+                                        const isError = st.state === 'error'
 
                                         return (
                                             <div className="status-item status-item--done" key={img.id}>
@@ -148,14 +225,15 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                                             <div className="status-item__info">
                                                 <p className="status-item__name">{name}.mp4</p>
                                                 <p className="status-item__detail" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                    {isError && <><X size={12} style={{ color: 'var(--error)' }} /> {String(st).replace('error:', '')}</>}
-                                                    {isUploading && <><Clock size={12} /> Mengupload...</>}
-                                                    {isDone && typeof st === 'string' && st.startsWith('http') ? (
-                                                        <a href={st} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                    {isError && <><X size={12} style={{ color: 'var(--error)' }} /> {st.error || 'Upload gagal'}</>}
+                                                    {st.state === 'downloading' && <><Clock size={12} /> Menyiapkan file...</>}
+                                                    {st.state === 'uploading' && <><Clock size={12} /> Mengupload... {st.progress || 0}%</>}
+                                                    {isDone && st.url ? (
+                                                        <a href={st.url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
                                                             <CheckCircle size={12} /> Lihat di Drive
                                                         </a>
                                                     ) : isDone && <><CheckCircle size={12} /> Upload berhasil</>}
-                                                    {!st && `Siap upload`}
+                                                    {st.state === 'idle' && 'Siap upload'}
                                                 </p>
                                             </div>
                                             {!isDone && (
@@ -164,7 +242,7 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                                                     onClick={() => uploadToDrive(img, name)}
                                                     disabled={isUploading}
                                                 >
-                                                    {isUploading ? <><span className="spinner" style={{ marginRight: 4 }} />...</> : <UploadCloud size={16} />}
+                                                    {isUploading ? <><span className="spinner" style={{ marginRight: 4 }} />{st.progress || 0}%</> : <UploadCloud size={16} />}
                                                 </button>
                                             )}
                                         </div>
@@ -209,7 +287,7 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                             const uploadDate = new Date(startDate)
                             uploadDate.setDate(uploadDate.getDate() + index)
                             const isDone = img.status === 'done'
-                            const driveUploaded = uploadStatus[img.id] && !String(uploadStatus[img.id]).startsWith('error')
+                            const driveUploaded = resolvedUploadStatus[img.id]?.state === 'done'
 
                             return (
                                 <tr key={img.id}>
@@ -242,11 +320,15 @@ export default function StepExport({ images, settings, outputNames, driveToken, 
                     <ChecklistItem done={totalImages > 0} label="Gambar referensi diimpor" detail={`${totalImages} gambar`} />
                     <ChecklistItem done={doneVideos.length === totalImages && totalImages > 0} label="Semua video berhasil di-generate (Step 2)" detail={`${doneVideos.length}/${totalImages} selesai`} />
                     <ChecklistItem
-                        done={doneVideos.filter(img => img.videoUrl && img.videoUrl.includes('/downloads/')).length > 0}
+                        done={doneVideos.filter(img => img.videoUrl && img.videoUrl.includes('/downloads/')).length === totalImages && totalImages > 0}
                         label="Proses BenAlus Seamless Loop (Step 3)"
                         detail={`${doneVideos.filter(img => img.videoUrl && img.videoUrl.includes('/downloads/')).length}/${totalImages} video siap`}
                     />
-                    <ChecklistItem done={Object.values(uploadStatus).filter(s => s && !String(s).startsWith('error')).length > 0} label="Upload ke Google Drive" detail={`${Object.values(uploadStatus).filter(s => s && !String(s).startsWith('error')).length} video terupload`} />
+                    <ChecklistItem
+                        done={uploadedCount === doneVideos.length && doneVideos.length > 0}
+                        label="Upload ke Google Drive"
+                        detail={`${uploadedCount}/${doneVideos.length} video terupload`}
+                    />
                     <ChecklistItem done={false} label="Upload video sesuai jadwal YouTube" detail="Ikuti tabel jadwal di atas" />
                 </div>
 

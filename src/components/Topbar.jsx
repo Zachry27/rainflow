@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { Home, Image as ImageIcon, Video, RefreshCw, UploadCloud, Waves, Activity, LogOut, ChevronDown, ChevronUp } from 'lucide-react'
+import { Home, Image as ImageIcon, Video, RefreshCw, UploadCloud, Waves, Activity, HardDrive, Settings, LogOut, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react'
 
-export default function Topbar({ onMenuToggle, activeStep, isSidebarOpen }) {
+export default function Topbar({ onMenuToggle, activeStep, isSidebarOpen, onResetWorkflow }) {
     const { user, logout } = useAuth()
     const navigate = useNavigate()
     const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -14,6 +14,9 @@ export default function Topbar({ onMenuToggle, activeStep, isSidebarOpen }) {
         generate: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Video size={14} /> Generate Video</span>,
         process: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><RefreshCw size={14} /> Seamless Loop</span>,
         export: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><UploadCloud size={14} /> Export & Ringkasan</span>,
+        storage: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><HardDrive size={14} /> Storage & Riwayat</span>,
+        settings: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Settings size={14} /> Pengaturan</span>,
+        logs: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Activity size={14} /> Log Aktivitas</span>,
     }
 
     return (
@@ -48,6 +51,17 @@ export default function Topbar({ onMenuToggle, activeStep, isSidebarOpen }) {
 
             {/* Right: User menu */}
             <div className="topbar__right">
+                {onResetWorkflow && (
+                    <button
+                        className="topbar__reset-btn btn btn--outline btn--sm"
+                        onClick={onResetWorkflow}
+                        id="topbar-reset-workflow"
+                        title="Reset pekerjaan dan mulai dari Step 1"
+                    >
+                        <RotateCcw size={14} />
+                        <span>Reset</span>
+                    </button>
+                )}
                 {user && (
                     <div className="topbar__user" style={{ position: 'relative' }}>
                         <button
